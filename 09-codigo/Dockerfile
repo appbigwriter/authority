@@ -14,6 +14,8 @@ COPY . .
 # Build the project
 RUN npm run build
 
+# Expose port
+EXPOSE 3000
+
 # Start the application
-# Use a keep-alive command if the index.js doesn't run a server
-CMD ["node", "-e", "import('./dist/index.js').then(() => { console.log('Authority Engine initialized.'); setInterval(() => {}, 3600000); }).catch(console.error);"]
+CMD ["node", "dist/index.js"]
