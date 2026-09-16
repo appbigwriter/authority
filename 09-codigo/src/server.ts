@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { readFile } from 'node:fs/promises';
 import { JsonStore } from './repository.js';
 import { enqueueBrief, produceDraft, submitForReview, requestHumanApproval, publishAfterApproval, recordMetrics, createRadarFeedback, publishAssisted, FakePublishingAdapter } from './post-machine.js';
 import type { Approval, ContentBrief, ContentDraft, Profile } from './types.js';
@@ -12,6 +13,8 @@ export function createAuthorityServer(store: JsonStore) {
   return createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', 'http://localhost');
+      if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/dashboard')) { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(await readFile(new URL('../public/dashboard.html', import.meta.url), 'utf8')); }
+      if (req.method === 'GET' && url.pathname === '/api/info') return json(res, 200, { service: 'authority-engine', status: 'running', health: '/health', state: '/api/state', version: '0.1.0' });
       if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, { ok: true, service: 'authority-engine', persistence: 'json-store', externalIntegrations: 'not_configured', publicationMode: 'assisted_only' });
       if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, await store.read());
       if (req.method === 'POST' && url.pathname === '/api/opportunities') { const item = { id: id(), ...(await body(req)), status: 'candidate' }; return json(res, 201, await store.append('opportunities', item)); }

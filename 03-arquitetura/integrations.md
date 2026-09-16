@@ -12,7 +12,12 @@ SECONDARY_MARKETPLACE_API_KEY=
 ```
 
 ## Estado atual
-As variáveis Amazon e marketplace secundário não estão configuradas neste ambiente. Os adapters existem e falham fechado com `*_integration_not_configured` quando usados sem configuração.
+- Control Tower: provisionado e ativo.
+- Project ID: `dfb080ea-5fa2-4924-bccd-8f121c637e6e`.
+- Schema: `custom_authorityengine`.
+- Namespace ativo: `fbr/blogs/dfb080ea-5fa2-4924-bccd-8f121c637e6e/`.
+- Bindings de runtime: 5 referências ativas no provider `easypanel`.
+- As variáveis Amazon e marketplace secundário ainda não estão configuradas.
 
 ## Para considerar S1 integrado
 Cada marketplace deve fornecer:

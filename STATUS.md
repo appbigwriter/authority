@@ -1,7 +1,18 @@
 # STATUS — Authority Engine
 
 ## Estado atual
-`IMPLEMENTACAO_PARCIAL` | núcleo vertical e API local verificados | QA formal bloqueado por integrações externas
+`IMPLEMENTACAO_PARCIAL` | Control Tower provisionado | núcleo local verificado | integrações de produto e QA pendentes
+
+## Provisionamento Control Tower
+- Projeto: `Authority Engine`
+- Project ID: `dfb080ea-5fa2-4924-bccd-8f121c637e6e`
+- Slug: `authorityengine`
+- Tipo/template: `custom` / `custom_base`
+- Schema: `custom_authorityengine`
+- Status: `active`
+- Namespace: `fbr/blogs/dfb080ea-5fa2-4924-bccd-8f121c637e6e/`
+- Provider: `easypanel`
+- Bindings ativos: 5 referências
 
 ## Progresso da Fundação
 - ✅ Escopo inicial formatado
@@ -14,10 +25,13 @@
 - ✅ Sprints e stories dos quatro módulos desmembrados
 - ✅ Núcleo local dos quatro módulos implementado
 - ✅ Algoritmo do Manual de Criação de Personas incorporado ao Seeds Creator e Farmer
-- ✅ Servidor HTTP e `/health` implementados
+- ✅ Servidor HTTP, `/health` e dashboard operacional implementados
+- ✅ Dashboard verificado no browser: criação de oportunidade persistida e exibida
 - ✅ Persistência local base implementada
 - ✅ Contrato de API documentado
-- ✅ Schema Postgres/Supabase rascunhado, não aplicado
+- ✅ Schema Postgres/Supabase provisionado no Control Tower como `custom_authorityengine`
+- ✅ Namespace de Secret Manager registrado e 5 bindings ativos por referência
+- ✅ Handoffs sanitizados do Control Tower arquivados em `03-arquitetura`
 - ✅ Stories locais dos quatro módulos verificadas por testes
 - ✅ Build TypeScript e 26 testes locais passando
 - 🔄 Validação do MP-000, Projeto Conceitual e backlog por Sergio
