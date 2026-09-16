@@ -1,0 +1,24 @@
+{
+  "opportunities": [
+    {
+      "id": "api_1789517286536_ur4eqs",
+      "niche": "business displays",
+      "subniche": "trade show lighting",
+      "problem": "booth visibility",
+      "audience": "small exhibitors",
+      "status": "candidate"
+    }
+  ],
+  "seeds": [],
+  "profiles": [],
+  "content": [],
+  "approvals": [
+    {
+      "id": "api_1789517286542_hhtkv0",
+      "targetId": "x",
+      "approved": true,
+      "scope": "smoke-test",
+      "approvedAt": "2026-09-16T00:08:06.542Z"
+    }
+  ]
+}

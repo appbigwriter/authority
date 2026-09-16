@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { FakeMarketplaceAdapter, createOpportunity } from '../opportunity-radar.js';
 import { createSeeds, selectSeed } from '../influencer-seeds.js';
 import { farmProfile, validatePersonaForReview } from '../influencer-farmer.js';
-import { produceDraft, publishAfterApproval, requestHumanApproval } from '../post-machine.js';
+import { produceDraft, publishAfterApproval, requestHumanApproval, submitForReview } from '../post-machine.js';
 
 test('pipeline completo com fake adapter respeita estados e gates', async () => {
   const opportunity = await createOpportunity(new FakeMarketplaceAdapter(), { niche: 'business displays', subniche: 'trade show lighting', problem: 'small businesses need their booth to be visible in a crowded aisle', audience: 'small business exhibitors' });
@@ -11,12 +11,13 @@ test('pipeline completo com fake adapter respeita estados e gates', async () => 
   const seed = selectSeed(createSeeds(opportunity), `seed_${opportunity.id}_curator`);
   const profile = farmProfile(seed);
   const approved = { ...profile, status: 'approved' as const };
-  assert.throws(() => produceDraft(approved, { id: 'b1', profileId: approved.id, topic: 'lighting', pillar: approved.pillars[0]!, format: 'teardown', channel: 'short-video', objective: 'educate', sources: [], status: 'draft' }), /invalid_content_brief/);
-  const brief = { id: 'b1', profileId: approved.id, topic: 'trade show lighting', pillar: approved.pillars[0]!, format: 'teardown', channel: 'short-video', objective: 'help choose', sources: opportunity.evidence, status: 'draft' as const };
+  assert.throws(() => produceDraft(approved, { id: 'b1', profileId: approved.id, topic: 'lighting', pillar: approved.pillars[0]!, format: approved.formats[0]!, channel: 'short-video', objective: 'educate', sources: [], status: 'draft' }), /invalid_content_brief/);
+  const brief = { id: 'b1', profileId: approved.id, topic: 'trade show lighting', pillar: approved.pillars[0]!, format: approved.formats[0]!, channel: 'short-video', objective: 'help choose', sources: opportunity.evidence, status: 'draft' as const };
   const draft = produceDraft(approved, brief);
-  assert.equal(draft.status, 'review');
-  assert.equal(requestHumanApproval(draft).status, 'awaiting_human_approval');
-  assert.equal(publishAfterApproval(requestHumanApproval(draft), true).status, 'published');
+  assert.equal(draft.status, 'draft');
+  const awaiting = requestHumanApproval(submitForReview(draft));
+  assert.equal(awaiting.status, 'awaiting_human_approval');
+  assert.equal(publishAfterApproval(awaiting, true).status, 'published');
 });
 
 test('não permite criar seed de oportunidade bloqueada', async () => {
@@ -29,7 +30,7 @@ test('não permite publicar sem aprovação humana', async () => {
   const opportunity = await createOpportunity(new FakeMarketplaceAdapter(), { niche: 'business displays', subniche: 'trade show lighting', problem: 'small businesses need their booth to be visible in a crowded aisle', audience: 'small business exhibitors' });
   const seed = selectSeed(createSeeds(opportunity), `seed_${opportunity.id}_analyst`);
   const profile = { ...farmProfile(seed), status: 'approved' as const };
-  const draft = produceDraft(profile, { id: 'b2', profileId: profile.id, topic: 'lighting', pillar: profile.pillars[0]!, format: 'breakdown', channel: 'blog', objective: 'educate', sources: opportunity.evidence, status: 'draft' });
+  const draft = produceDraft(profile, { id: 'b2', profileId: profile.id, topic: 'lighting', pillar: profile.pillars[0]!, format: profile.formats[0]!, channel: 'blog', objective: 'educate', sources: opportunity.evidence, status: 'draft' });
   assert.throws(() => publishAfterApproval(draft, true), /human_approval_required/);
 });
 

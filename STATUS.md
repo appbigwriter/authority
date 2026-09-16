@@ -1,7 +1,7 @@
 # STATUS — Authority Engine
 
 ## Estado atual
-`IMPLEMENTACAO_PARCIAL` | núcleo vertical local verificado | integrações reais e QA pendentes
+`IMPLEMENTACAO_PARCIAL` | núcleo vertical e API local verificados | QA formal bloqueado por integrações externas
 
 ## Progresso da Fundação
 - ✅ Escopo inicial formatado
@@ -14,35 +14,42 @@
 - ✅ Sprints e stories dos quatro módulos desmembrados
 - ✅ Núcleo local dos quatro módulos implementado
 - ✅ Algoritmo do Manual de Criação de Personas incorporado ao Seeds Creator e Farmer
-- ✅ Build TypeScript e 4 testes locais passando
+- ✅ Servidor HTTP e `/health` implementados
+- ✅ Persistência local base implementada
+- ✅ Contrato de API documentado
+- ✅ Schema Postgres/Supabase rascunhado, não aplicado
+- ✅ Stories locais dos quatro módulos verificadas por testes
+- ✅ Build TypeScript e 26 testes locais passando
 - 🔄 Validação do MP-000, Projeto Conceitual e backlog por Sergio
-- ⬜ Integrações reais Amazon/marketplaces
-- ⬜ Persistência, autenticação e dashboard
-- ⬜ QA de integração e segurança
+- ⬜ Integração real Amazon
+- ⬜ Integração real de marketplace adicional
+- ⬜ Persistência Postgres/Supabase, autenticação e RLS
+- ⬜ Geração visual e armazenamento de assets
+- ⬜ Canais reais, fila e publicação assistida
+- ⬜ QA formal
+- ⬜ Congelamento da versão das Sprints
 - ⬜ Execução manual do piloto
-- ⬜ Registro de evidências de mercado e aprendizados
-- ⬜ Especificação técnica pós-piloto
-- ⬜ Implementação completa do aplicativo
 
 ## Status das Sprints
 
-| Sprint | Módulo | Estado | Evidência | Pendências principais |
+| Sprint | Módulo | Estado | Evidência | Bloqueio |
 |---|---|---|---|---|
-| S1 | Opportunity Radar | parcialmente implementada | adapter fake, normalização básica, tendência, score e bloqueio sensível testados | APIs reais Amazon/marketplaces, persistência e fontes reais |
-| S2 | Influencer Seeds Creator | parcialmente implementada | arquétipos, funções, seeds, score, seleção e anti-clonagem básica testados | taxonomia completa, comparação com portfólio persistido e decisão formal |
-| S3 | Influencer Farmer | parcialmente implementada | perfil, Mentor, redondeza, Character Bible textual, guardrails e claims testados | geração visual real, revisão completa, briefing persistido e handoff real |
-| S4 | Post Machine | parcialmente implementada | briefing, draft, revisão, aprovação humana e bloqueio de publicação testados | canais reais, fila, agendamento assistido, métricas e receipts |
+| S1 | Opportunity Radar | parcial | adapter configurável, fake adapter, score e API local | contratos/credenciais reais Amazon e marketplace adicional |
+| S2 | Influencer Seeds Creator | parcial | seeds, arquétipos, score, seleção e anti-clonagem básica | catálogo persistido e decisão formal |
+| S3 | Influencer Farmer | parcial | persona Mentor, redondeza, Character Bible textual e guardrails | imagem real, persistência e handoff operacional |
+| S4 | Post Machine | parcial | draft, revisão, aprovação humana e API local | canais reais, fila, métricas e receipts |
 
-Nenhuma Sprint está `concluida`. As quatro foram atravessadas por um vertical local, mas ainda não satisfazem todos os critérios do backlog nem possuem QA formal.
+Nenhuma Sprint está concluída. O núcleo local foi verificado, mas a entrega completa exige resolver os bloqueios acima.
 
 ## Evidência mais recente
 - Diretório: `09-codigo`
 - Comando: `npm run check`
-- Resultado: build passou; 4 testes passaram; 0 falhas.
-- Limitação: testes usam `FakeMarketplaceAdapter`; nenhuma API externa foi declarada como integrada.
+- Resultado: build passou; 26 testes passaram; 0 falhas.
+- Smoke HTTP: `/health` 200; criação persistida 201; aprovação sem `true` 422; leitura de estado 200.
+- Limitação: integrações externas não configuradas; persistência é `JsonStore` local.
 
 ## Regra operacional
-Nenhum agente deve iniciar publicação, gasto, criação de contas ou integração irreversível sem aprovação específica. Código local pode ser desenvolvido e testado, mas integração real deve ter contrato, credencial segura, health check, evidência e gate.
+Nenhum agente deve publicar, gastar, criar contas ou aplicar migration externa sem contrato, credencial segura, health check, evidência e aprovação específica.
 
 ## Próximo gate
-Revisão de Sergio do núcleo vertical, dos contratos das APIs e do backlog antes de continuar a implementação ou abrir QA formal.
+Resolver contratos/credenciais de marketplace e decidir/adquirir o ambiente Postgres/Supabase antes do QA formal.
