@@ -27,6 +27,8 @@
 - ✅ Algoritmo do Manual de Criação de Personas incorporado ao Seeds Creator e Farmer
 - ✅ Servidor HTTP, `/health` e dashboard operacional implementados
 - ✅ Dashboard verificado no browser: criação de oportunidade persistida e exibida
+- ✅ Dashboard recuperado após interrupção: Overview, Radar, Seeds, Farmer e Post Machine carregam
+- ✅ Erro JavaScript do dashboard corrigido e script validado
 - ✅ Persistência local base implementada
 - ✅ Contrato de API documentado
 - ✅ Schema Postgres/Supabase provisionado no Control Tower como `custom_authorityengine`
