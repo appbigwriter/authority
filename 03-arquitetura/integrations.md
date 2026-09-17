@@ -12,12 +12,14 @@ SECONDARY_MARKETPLACE_API_KEY=
 ```
 
 ## Estado atual
-- Control Tower: provisionado e ativo.
+- Control Tower: provisionado e ativo na VPS.
+- Endpoint: `https://control-tower.fbr.news`.
 - Project ID: `dfb080ea-5fa2-4924-bccd-8f121c637e6e`.
 - Schema: `custom_authorityengine`.
 - Namespace ativo: `fbr/blogs/dfb080ea-5fa2-4924-bccd-8f121c637e6e/`.
-- Bindings de runtime: 5 referências ativas no provider `easypanel`.
-- As variáveis Amazon e marketplace secundário ainda não estão configuradas.
+- Bindings de runtime: referências ativas no provider `easypanel`.
+- Desenvolvimento local: apenas fallback/testes; não é a fonte de produção.
+- As variáveis Amazon, marketplace secundário e LLM ainda precisam ser injetadas no runtime da VPS.
 
 ## Para considerar S1 integrado
 Cada marketplace deve fornecer:

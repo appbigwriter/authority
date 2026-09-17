@@ -68,4 +68,4 @@ Nenhuma Sprint está concluída. O núcleo local foi verificado, mas a entrega c
 Nenhum agente deve publicar, gastar, criar contas ou aplicar migration externa sem contrato, credencial segura, health check, evidência e aprovação específica.
 
 ## Próximo gate
-Resolver contratos/credenciais de marketplace e decidir/adquirir o ambiente Postgres/Supabase antes do QA formal.
+Configurar o runtime da aplicação na VPS/Easypanel com as referências do namespace `fbr/blogs/dfb080ea-5fa2-4924-bccd-8f121c637e6e`, executar health check no ambiente remoto e só então conectar LLM, marketplaces, banco produtivo e canais.
