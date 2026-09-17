@@ -1,4 +1,4 @@
-import type { Opportunity, OpportunityResearch } from '../types.js';
+import type { Opportunity } from '../types.js';
 import type { OpportunityResearch as ExtResearch } from '../types-extended.js';
 
 const RESEARCH_PROMPT = `

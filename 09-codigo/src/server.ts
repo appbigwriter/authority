@@ -2,16 +2,40 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { readFile } from 'node:fs/promises';
 import { JsonStore } from './repository.js';
 import { enqueueBrief, produceDraft, submitForReview, requestHumanApproval, publishAfterApproval, recordMetrics, createRadarFeedback, publishAssisted, FakePublishingAdapter } from './post-machine.js';
-import type { Approval, ContentBrief, ContentDraft, Profile } from './types.js';
+import type { Approval, ContentBrief, ContentDraft, Profile, Opportunity } from './types.js';
 import { researchOpportunityWithLLM, createResearchRecord } from './services/opportunity-research.js';
 import { generateSeedArchetypes, createSeedProfiles } from './services/influencer-seeds.js';
 import { createFarmerProfile } from './services/influencer-farmer.js';
 import { generatePostMachineOutput } from './services/post-machine.js';
+import type { FarmerProfile as FarmerProfileExtended } from './types-extended.js';
+
+interface FarmerProfile { id: string; profileId?: string; seedId: string; name: string; brand: string; bio: string; disclosure: string; thesis: string; promise: string; mentorRole: 'mentor'; archetype: string; traits: string[]; decisionCompass: string; not: string[]; backstory: string; authorityMethod: string; voice: { tone: string; vocabulary: string[]; prohibited: string[] }; visual: { style: string; palette: string; continuity: string; anchorFace: string; signatureTrait: string; prompts: string[]; credibilitySettings: string[]; credibilityLocations: string[] }; pillars: string[]; formats: string[]; guardrails: string[]; claims: { allowed: string[]; soften: string[]; prohibited: string[] }; aboutPage: string; footerDisclaimer: string; monetizationModel: string[]; crossCuttingThemes: string[]; socialContentIdeas: { blog: string[]; video: string[]; shorts: string[]; stories: string[]; }; weeklyContentPlan: any[]; status: 'development' | 'review' | 'approved'; createdAt: string; }
 
 const json = (res: ServerResponse, status: number, body: unknown) => { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(body)); };
 const body = async (req: IncomingMessage): Promise<any> => { let raw = ''; for await (const chunk of req) raw += chunk; return raw ? JSON.parse(raw) : {}; };
 const id = () => `api_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-const find = async (store: JsonStore, collection: 'profiles' | 'briefs' | 'content' | 'approvals' | 'metrics' | 'research' | 'seeds' | 'farmer_profiles' | 'post_machine') => (await store.read())[collection];
+
+interface StoreCollections {
+  opportunities: any[];
+  seeds: any[];
+  profiles: any[];
+  content: any[];
+  briefs: any[];
+  assets: any[];
+  approvals: any[];
+  receipts: any[];
+  metrics: any[];
+  feedback: any[];
+  events: any[];
+  research: any[];
+  farmer_profiles: any[];
+  post_machine: any[];
+}
+
+const find = async <T>(store: JsonStore, collection: keyof StoreCollections): Promise<any[]> => {
+  const data = await store.read();
+  return (data[collection] as unknown as any[]) || [];
+};
 
 export function createAuthorityServer(store: JsonStore) {
   return createServer(async (req, res) => {
@@ -26,23 +50,32 @@ export function createAuthorityServer(store: JsonStore) {
       if (req.method === 'POST' && url.pathname === '/api/opportunities') { const item = { id: id(), ...(await body(req)), status: 'candidate' }; return json(res, 201, await store.append('opportunities', item)); }
       if (req.method === 'POST' && url.pathname === '/api/opportunities/research') {
         const input = await body(req);
-        const opportunity = (await store.read()).opportunities.find((o: any) => o.id === input.opportunityId);
+        const opportunities = await find<Opportunity>(store, 'opportunities');
+        const opportunity = opportunities.find((o) => o.id === input.opportunityId);
         if (!opportunity) return json(res, 404, { error: 'opportunity_not_found' });
         const research = await researchOpportunityWithLLM(opportunity);
         await createResearchRecord(store, research);
         return json(res, 201, research);
       }
       if (req.method === 'GET' && url.pathname === '/api/research') {
-        return json(res, 200, (await store.read()).research || []);
+        return json(res, 200, await find(store, 'research'));
       }
 
       // S2 - Influencer Seeds Creator
       if (req.method === 'POST' && url.pathname === '/api/seeds/generate') {
         const input = await body(req);
-        const research = (await store.read()).research.find((r: any) => r.id === input.researchId);
+        const researchList = await find(store, 'research');
+        const research = researchList.find((r: any) => r.id === input.researchId);
         if (!research) return json(res, 404, { error: 'research_not_found' });
         const archetypes = generateSeedArchetypes(research);
-        const seeds = createSeedProfiles(research.opportunityId, { audience: research.research.audienceInsights[0], problem: research.research.contentGaps[0] }, archetypes, research.id);
+        const opportunityData = {
+          audience: research.research?.audienceInsights?.[0] || '',
+          problem: research.research?.contentGaps?.[0] || '',
+          subniche: research.research?.monetizationPaths?.[0] || '',
+          products: [],
+          risks: []
+        };
+        const seeds = createSeedProfiles(research.opportunityId, opportunityData, archetypes, research.id);
         for (const seed of seeds) await store.append('seeds', seed);
         return json(res, 201, { archetypes, seeds });
       }

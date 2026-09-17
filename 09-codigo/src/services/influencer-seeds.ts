@@ -83,28 +83,35 @@ export function generateSeedArchetypes(research: any): SeedArchetype[] {
 
 function selectRelevantArchetypes(research: any): SeedArchetype[] {
   const results: SeedArchetype[] = [];
-  const monetization = (research.research?.monetizationPaths || []).join(' ').toLowerCase();
-  const problem = (research.research?.contentGaps || []).join(' ').toLowerCase();
-  const audience = (research.research?.audienceInsights || []).join(' ').toLowerCase();
+  const researchData = research?.research || {};
+  const monetization = (researchData.monetizationPaths || []).join(' ').toLowerCase();
+  const problem = (researchData.contentGaps || []).join(' ').toLowerCase();
+  const audience = (researchData.audienceInsights || []).join(' ').toLowerCase();
 
   // Sempre incluir curator como base
-  results.push(ARCHETYPES.find(a => a.id === 'curator')!);
+  const curator = ARCHETYPES.find(a => a.id === 'curator');
+  if (curator) results.push(curator);
 
   // Lógica de seleção baseada no nicho/problema
   if (monetization.includes('caro') || monetization.includes('investimento') || problem.includes('risco') || problem.includes('golpe')) {
-    results.push(ARCHETYPES.find(a => a.id === 'guardian')!);
+    const g = ARCHETYPES.find(a => a.id === 'guardian');
+    if (g) results.push(g);
   }
   if (monetization.includes('técnico') || problem.includes('complexo') || audience.includes('técnico')) {
-    results.push(ARCHETYPES.find(a => a.id === 'specialist')!);
+    const s = ARCHETYPES.find(a => a.id === 'specialist');
+    if (s) results.push(s);
   }
   if (problem.includes('decisão') || problem.includes('escolha') || monetization.includes('estratégia')) {
-    results.push(ARCHETYPES.find(a => a.id === 'visionary')!);
+    const v = ARCHETYPES.find(a => a.id === 'visionary');
+    if (v) results.push(v);
   }
   if (audience.includes('vida') || audience.includes('pessoal') || problem.includes('cotidiano')) {
-    results.push(ARCHETYPES.find(a => a.id === 'friend')!);
+    const f = ARCHETYPES.find(a => a.id === 'friend');
+    if (f) results.push(f);
   }
   if (problem.includes('entender') || audience.includes('iniciante') || monetization.includes('educação')) {
-    results.push(ARCHETYPES.find(a => a.id === 'sage')!);
+    const s2 = ARCHETYPES.find(a => a.id === 'sage');
+    if (s2) results.push(s2);
   }
 
   // Garantir pelo menos 3, no máximo 5
@@ -125,19 +132,19 @@ export function createSeedProfiles(
     archetype: arch.archetype,
     function: arch.description,
     mentorRole: 'mentor' as const,
-    audience: opportunity.audience,
-    problem: opportunity.problem,
-    thesis: `A autoridade em ${opportunity.subniche} nasce de ${arch.approach.toLowerCase()}.`,
+    audience: opportunity.audience || '',
+    problem: opportunity.problem || '',
+    thesis: `A autoridade em ${opportunity.subniche || opportunity.niche} nasce de ${arch.approach.toLowerCase()}.`,
     promise: arch.description,
-    traits: [arch.tone.split(',')[0].trim(), 'baseada em evidência', 'focada no leitor'],
-    decisionCompass: `Esta recomendação ajuda ${opportunity.audience} a decidir melhor sem exagerar a evidência?`,
+    traits: [arch.tone?.split(',')[0]?.trim() || 'assertiva', 'baseada em evidência', 'focada no leitor'],
+    decisionCompass: `Esta recomendação ajuda ${opportunity.audience || 'o leitor'} a decidir melhor sem exagerar a evidência?`,
     not: ['alarmista', 'salesy', 'arrogante', 'promete resultado garantido'],
-    backstory: `Construída como voz editorial de ${arch.approach.toLowerCase()} para ${opportunity.audience}.`,
+    backstory: `Construída como voz editorial de ${arch.approach.toLowerCase()} para ${opportunity.audience || 'a audiência'}.`,
     differentiation: arch.whyThisWorks,
     voice: arch.tone,
     visualDirection: arch.visualDirection,
-    anchorFace: `definir: ${arch.visualDirection.split(',')[0].trim()}`,
-    signatureTrait: arch.visualDirection.split(',').pop()?.trim() || 'expressão de discernimento',
+    anchorFace: `definir: ${arch.visualDirection?.split(',')[0]?.trim() || ''}`,
+    signatureTrait: arch.visualDirection?.split(',').pop()?.trim() || 'expressão de discernimento',
     formats: arch.contentPillars,
     monetizationPaths: opportunity.products?.map((p: any) => p.title) || ['produto próprio relevante', 'afiliado relevante'],
     risks: opportunity.risks || [],

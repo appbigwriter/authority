@@ -190,6 +190,7 @@ export interface StoryScript {
     frame: number;
     visual: string;
     text: string;
+    subText?: string;
     interactive?: string;
   }[];
   cta: string;

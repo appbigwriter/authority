@@ -229,7 +229,7 @@ async function generateStoryScript(profile: FarmerProfile, topic: string): Promi
     sequence: [
       { frame: 1, visual: 'Foto do produto/problema com texto "Isso te parece familiar?"', text: 'Seu ' + topic.split(' ')[0] + ' não resolve?' },
       { frame: 2, visual: 'Infográfico animado: 3 sinais de alerta', text: '3 sinais de que você está comprando errado', interactive: 'poll: "Já errou assim?" Sim/Não' },
-      { frame: 3, visual: 'Checklist na tela com 4 itens', text: 'O filtro que uso antes de recomendar', text: 'Aplique estes 4 filtros:' },
+      { frame: 3, visual: 'Checklist na tela com 4 itens', text: 'O filtro que uso antes de recomendar', subText: 'Aplique estes 4 filtros:' },
       { frame: 4, visual: 'Split: antes (erro) vs depois (acerto)', text: 'Resultado: decisão certa, zero arrependimento' },
       { frame: 5, visual: 'Sua foto + link na bio', text: 'Quer o checklist completo? Link na bio 👆', interactive: 'link_sticker' },
     ],

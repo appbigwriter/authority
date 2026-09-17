@@ -7,6 +7,14 @@
       "problem": "Small businesses need their booth to be visible in a crowded aisle",
       "audience": "small business exhibitors",
       "status": "candidate"
+    },
+    {
+      "id": "api_1789675790250_s7w9xa",
+      "niche": "business displays",
+      "subniche": "trade show lighting",
+      "problem": "booth visibility in crowded aisle",
+      "audience": "small business exhibitors",
+      "status": "candidate"
     }
   ],
   "seeds": [],
@@ -18,5 +26,8 @@
   "receipts": [],
   "metrics": [],
   "feedback": [],
-  "events": []
+  "events": [],
+  "research": [],
+  "farmer_profiles": [],
+  "post_machine": []
 }
