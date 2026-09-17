@@ -32,7 +32,9 @@
 - ✅ Persistência local base implementada
 - ✅ Contrato de API documentado
 - ✅ Schema Postgres/Supabase provisionado no Control Tower como `custom_authorityengine`
-- ✅ Namespace de Secret Manager registrado e 5 bindings ativos por referência
+- ✅ Job `create_project` confirmado como `success`
+- ✅ Namespace de Secret Manager registrado e bindings ativos por referência
+- ⚠️ Schema `custom_authorityengine` ainda não está exposto no PostgREST da VPS (retorno `PGRST106`); aplicação ainda não pode usá-lo via REST
 - ✅ Handoffs sanitizados do Control Tower arquivados em `03-arquitetura`
 - ✅ Stories locais dos quatro módulos verificadas por testes
 - ✅ Build TypeScript e 26 testes locais passando
