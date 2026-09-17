@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-export interface StoreData { opportunities: unknown[]; seeds: unknown[]; profiles: unknown[]; content: unknown[]; briefs: unknown[]; assets: unknown[]; approvals: unknown[]; receipts: unknown[]; metrics: unknown[]; feedback: unknown[]; events: unknown[]; }
-const empty: StoreData = { opportunities: [], seeds: [], profiles: [], content: [], briefs: [], assets: [], approvals: [], receipts: [], metrics: [], feedback: [], events: [] };
+export interface StoreData { opportunities: unknown[]; seeds: unknown[]; profiles: unknown[]; content: unknown[]; briefs: unknown[]; assets: unknown[]; approvals: unknown[]; receipts: unknown[]; metrics: unknown[]; feedback: unknown[]; events: unknown[]; research: unknown[]; farmer_profiles: unknown[]; post_machine: unknown[]; }
+const empty: StoreData = { opportunities: [], seeds: [], profiles: [], content: [], briefs: [], assets: [], approvals: [], receipts: [], metrics: [], feedback: [], events: [], research: [], farmer_profiles: [], post_machine: [] };
 
 export class JsonStore {
   constructor(private readonly file: string) {}

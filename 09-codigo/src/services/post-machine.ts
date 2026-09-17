@@ -108,7 +108,7 @@ async function generateBlogArticle(profile: FarmerProfile, topic: string): Promi
     .replace('{archetype}', profile.archetype)
     .replace('{topic}', topic)
     .replace('{audience}', profile.promise.split('ajudar ')[1]?.split(' a ')[0] || 'leitor')
-    .replace('{problem}', profile.problem)
+    .replace('{problem}', profile.promise)
     .replace('{voice}', profile.voice.tone)
     .replace('{keywords}', profile.crossCuttingThemes.slice(0, 3).join(', '));
 

@@ -1,5 +1,5 @@
-import type { Opportunity, OpportunityResearch } from './types.js';
-import type { OpportunityResearch as ExtResearch } from './types-extended.js';
+import type { Opportunity, OpportunityResearch } from '../types.js';
+import type { OpportunityResearch as ExtResearch } from '../types-extended.js';
 
 const RESEARCH_PROMPT = `
 Você é um analista de mercado especializado em descobrir oportunidades de nicho para criação de personas de autoridade.
