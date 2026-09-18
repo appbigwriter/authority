@@ -26,9 +26,7 @@
 - ✅ Núcleo local dos quatro módulos implementado
 - ✅ Algoritmo do Manual de Criação de Personas incorporado ao Seeds Creator e Farmer
 - ✅ Servidor HTTP, `/health` e dashboard operacional implementados
-- ✅ Dashboard verificado no browser: criação de oportunidade persistida e exibida
-- ✅ Dashboard recuperado após interrupção: Overview, Radar, Seeds, Farmer e Post Machine carregam
-- ✅ Erro JavaScript do dashboard corrigido e script validado
+- ✅ Dashboard local com contrato de autenticação em `sessionStorage`, `apiFetch` centralizado e testes de contrato UI
 - ✅ Persistência local base implementada
 - ✅ Contrato de API documentado
 - ✅ Schema Postgres/Supabase provisionado no Control Tower como `custom_authorityengine`
@@ -37,7 +35,7 @@
 - ⚠️ Schema `custom_authorityengine` ainda não está exposto no PostgREST da VPS (retorno `PGRST106`); aplicação ainda não pode usá-lo via REST
 - ✅ Handoffs sanitizados do Control Tower arquivados em `03-arquitetura`
 - ✅ Stories locais dos quatro módulos verificadas por testes
-- ✅ Build TypeScript e 26 testes locais passando
+- ✅ Build TypeScript e 49 testes locais passando
 - 🔄 Validação do MP-000, Projeto Conceitual e backlog por Sergio
 - ⬜ Integração real Amazon
 - ⬜ Integração real de marketplace adicional
@@ -62,7 +60,7 @@ Nenhuma Sprint está concluída. O núcleo local foi verificado, mas a entrega c
 ## Evidência mais recente
 - Diretório: `09-codigo`
 - Comando: `npm run check`
-- Resultado: build passou; 26 testes passaram; 0 falhas.
+- Resultado: build passou; 49 testes passaram; 0 falhas; contrato UI `node dashboard-contract.test.mjs` passou.
 - Smoke HTTP: `/health` 200; criação persistida 201; aprovação sem `true` 422; leitura de estado 200.
 - Limitação: integrações externas não configuradas; persistência é `JsonStore` local.
 
