@@ -8,6 +8,8 @@ import { generateSeedArchetypes, createSeedProfiles } from './services/influence
 import { createFarmerProfile } from './services/influencer-farmer.js';
 import { generatePostMachineOutput } from './services/post-machine.js';
 import { assertOwnership, authConfigFromEnv, authenticate, requireRoles, stampOwner, type RuntimeAuthConfig, type RuntimePrincipal, type RuntimeRole } from './auth.js';
+import { LocalPersonaFormationPipeline, defaultPersonaModules, type FormationSnapshot, type GenerationMetadata } from './persona-formation.js';
+import { createApprovedPersonaReadModel, createPersonaApprovedEvent } from './persona-contract.js';
 
 interface FarmerProfile { id: string; profileId?: string; seedId: string; name: string; brand: string; bio: string; disclosure: string; thesis: string; promise: string; mentorRole: 'mentor'; archetype: string; traits: string[]; decisionCompass: string; not: string[]; backstory: string; authorityMethod: string; voice: { tone: string; vocabulary: string[]; prohibited: string[] }; visual: { style: string; palette: string; continuity: string; anchorFace: string; signatureTrait: string; prompts: string[]; credibilitySettings: string[]; credibilityLocations: string[] }; pillars: string[]; formats: string[]; guardrails: string[]; claims: { allowed: string[]; soften: string[]; prohibited: string[] }; aboutPage: string; footerDisclaimer: string; monetizationModel: string[]; crossCuttingThemes: string[]; socialContentIdeas: { blog: string[]; video: string[]; shorts: string[]; stories: string[]; }; weeklyContentPlan: any[]; status: 'development' | 'review' | 'approved'; createdAt: string; ownerId?: string; createdBy?: string; }
 
@@ -24,6 +26,26 @@ const find = async (store: PersistenceStore, collection: StoreCollection): Promi
   return (data[collection] as unknown as any[]) || [];
 };
 
+const emptyFormationSnapshot = (): FormationSnapshot => ({ personas: [], versions: [], moduleRuns: [], jobs: [], approvalPackages: [] });
+const formationFromStore = async (store: PersistenceStore): Promise<FormationSnapshot> => {
+  const events = await find(store, 'events');
+  const latest = [...events].reverse().find((event: any) => event.type === 'persona.formation.snapshot');
+  return (latest?.payload as FormationSnapshot | undefined) ?? emptyFormationSnapshot();
+};
+const persistFormation = async (store: PersistenceStore, snapshot: FormationSnapshot, actor: RuntimePrincipal) => {
+  await store.append('events', stampOwner(actor, { id: id(), type: 'persona.formation.snapshot', actor: actor.id, payload: structuredClone(snapshot) as unknown as Record<string, unknown>, createdAt: new Date().toISOString() }));
+};
+const formationMetadata = (input: any): GenerationMetadata => ({ provider: input.provider ?? 'local-mock', model: input.model ?? 'local-persona-model', ...(input.modelVersion ? { modelVersion: input.modelVersion } : {}), promptVersion: input.promptVersion ?? 'persona-formation.v1' });
+
+type FormationArtifact = { id: string; kind: 'character-bible' | 'physical-identity-bible'; personaVersionId: string; personaId: string; version: number; status: string; content: unknown; ownerId: string; createdAt: string };
+const artifactsFromStore = async (store: PersistenceStore): Promise<FormationArtifact[]> => (await find(store, 'events'))
+  .filter((event: any) => event.type === 'persona.formation.artifact')
+  .map((event: any) => event.payload as FormationArtifact);
+const persistArtifact = async (store: PersistenceStore, artifact: FormationArtifact, actor: RuntimePrincipal) => {
+  await store.append('events', stampOwner(actor, { id: id(), type: 'persona.formation.artifact', actor: actor.id, payload: artifact as unknown as Record<string, unknown>, createdAt: new Date().toISOString() }));
+};
+const ownerOfFormationResource = (resource: any, actor: RuntimePrincipal): boolean => actor.role === 'admin' || resource?.ownerId === actor.ownerId;
+
 function visibleTo(principal: RuntimePrincipal, items: any[]): any[] {
   if (principal.role === 'admin') return items;
   return items.filter((item) => !item?.ownerId || item.ownerId === principal.ownerId);
@@ -34,7 +56,7 @@ function rolesFor(method: string | undefined, pathname: string): RuntimeRole[] |
   if (!pathname.startsWith('/api')) return null;
   if (method === 'GET' && pathname === '/api/state') return ['admin'];
   if (method === 'GET') return ['viewer'];
-  if (method === 'POST' && pathname === '/api/approvals') return ['reviewer'];
+  if (method === 'POST' && (pathname === '/api/approvals' || /^\/api\/approval-packs\/[^/]+\/approve$/.test(pathname) || /^\/api\/personas\/[^/]+\/approved-event$/.test(pathname))) return ['reviewer'];
   if (method === 'POST' && /^\/api\/content\/[^/]+\/publish$/.test(pathname)) return ['publisher'];
   if (method === 'POST' && /^\/api\/content\/[^/]+\/review$/.test(pathname)) return ['reviewer'];
   if (method === 'POST' && pathname === '/api/farmer/profile/approve') return ['reviewer'];
@@ -59,7 +81,9 @@ function requireOwner(res: ServerResponse, principal: RuntimePrincipal, resource
 }
 
 function errorStatus(message: string): number {
-  if (/required|missing|not_configured|gate_closed|credential|contract|disclosure|sources/.test(message)) return 422;
+  if (/not_found/.test(message)) return 404;
+  if (/stale|immutable|already_exists|duplicate/.test(message)) return 409;
+  if (/required|missing|not_configured|gate_closed|credential|contract|disclosure|sources|incomplete|profile_not_generated|consistency_review_failed|persona_approval_required|approved_event_identifiers_required/.test(message)) return 422;
   if (/approval|forbidden|owner|human_approval/.test(message)) return 403;
   return 400;
 }
@@ -80,6 +104,154 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
       const actor = principal!;
 
       if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, await store.read());
+
+      if (req.method === 'GET' && /^\/api\/personas\/[^/]+\/read-model$/.test(url.pathname)) {
+        const personaId = url.pathname.split('/')[3]!; const snapshot = await formationFromStore(store); const persona: any = snapshot.personas.find((item) => item.id === personaId);
+        if (!persona) return json(res, 404, { error: 'persona_not_found' });
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        const version: any = snapshot.versions.find((item) => item.id === persona.currentVersionId);
+        try { return json(res, 200, createApprovedPersonaReadModel(persona, version)); }
+        catch (error: unknown) { return json(res, errorStatus(error instanceof Error ? error.message : 'persona_approval_required'), { error: error instanceof Error ? error.message : 'persona_approval_required' }); }
+      }
+      if (req.method === 'POST' && /^\/api\/personas\/[^/]+\/approved-event$/.test(url.pathname)) {
+        const personaId = url.pathname.split('/')[3]!; const input = await body(req); const snapshot = await formationFromStore(store); const persona: any = snapshot.personas.find((item) => item.id === personaId);
+        if (!persona) return json(res, 404, { error: 'persona_not_found' });
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        const version: any = snapshot.versions.find((item) => item.id === persona.currentVersionId);
+        try {
+          const envelope = createPersonaApprovedEvent({ persona, version, blogId: input.blogId ?? '', blogNameVersionId: input.blogNameVersionId ?? '', correlationId: input.correlationId ?? '', causationId: input.causationId });
+          const data = await store.read();
+          if (data.outbox_events.some((event) => event.eventId === envelope.event_id)) return json(res, 409, { error: 'approved_event_already_exists' });
+          await store.append('outbox_events', { id: envelope.event_id, eventId: envelope.event_id, eventType: envelope.event_type, aggregateId: envelope.aggregate_id, payload: envelope.payload, envelope: envelope as unknown as Record<string, unknown>, status: 'pending', attempts: 0, maxAttempts: 3, createdAt: envelope.occurred_at });
+          return json(res, 201, envelope);
+        } catch (error: unknown) { return json(res, errorStatus(error instanceof Error ? error.message : 'approved_event_blocked'), { error: error instanceof Error ? error.message : 'approved_event_blocked' }); }
+      }
+      if (req.method === 'GET' && /^\/api\/outbox-events\/[^/]+$/.test(url.pathname)) {
+        const eventId = url.pathname.split('/')[3]!; const event = (await store.read({ projectId: 'local', ownerId: actor.ownerId })).outbox_events.find((item) => item.eventId === eventId);
+        return event?.envelope ? json(res, 200, event.envelope) : json(res, 404, { error: 'outbox_event_not_found' });
+      }
+
+      // F1 - local, mockable Persona formation pipeline. Records are append-only snapshots in events.
+      if (req.method === 'POST' && url.pathname === '/api/personas') {
+        const input = await body(req);
+        const snapshot = await formationFromStore(store);
+        const pipeline = new LocalPersonaFormationPipeline(defaultPersonaModules(), formationMetadata(input), snapshot);
+        const persona = pipeline.createPersona(input.input ?? input);
+        Object.assign(persona, { ownerId: actor.ownerId, createdBy: actor.id });
+        await persistFormation(store, pipeline.state, actor);
+        return json(res, 201, persona);
+      }
+      if (req.method === 'GET' && /^\/api\/personas\/[^/]+$/.test(url.pathname)) {
+        const personaId = url.pathname.split('/')[3]!; const snapshot = await formationFromStore(store); const persona: any = snapshot.personas.find((item) => item.id === personaId);
+        if (!persona) return json(res, 404, { error: 'persona_not_found' });
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        return json(res, 200, persona);
+      }
+      if (req.method === 'GET' && /^\/api\/personas\/[^/]+\/versions$/.test(url.pathname)) {
+        const personaId = url.pathname.split('/')[3]!; const snapshot = await formationFromStore(store); const persona: any = snapshot.personas.find((item) => item.id === personaId);
+        if (!persona) return json(res, 404, { error: 'persona_not_found' });
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        return json(res, 200, snapshot.versions.filter((item) => item.personaId === personaId));
+      }
+      if (req.method === 'GET' && /^\/api\/persona-versions\/[^/]+$/.test(url.pathname)) {
+        const versionId = url.pathname.split('/')[3]!; const snapshot = await formationFromStore(store); const version: any = snapshot.versions.find((item) => item.id === versionId);
+        if (!version) return json(res, 404, { error: 'persona_version_not_found' });
+        const persona: any = snapshot.personas.find((item) => item.id === version.personaId);
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        return json(res, 200, version);
+      }
+      if (req.method === 'GET' && /^\/api\/personas\/[^/]+\/versions\/[^/]+$/.test(url.pathname)) {
+        const [, , , personaId, versionNumber] = url.pathname.split('/'); const snapshot = await formationFromStore(store); const persona: any = snapshot.personas.find((item) => item.id === personaId);
+        if (!persona) return json(res, 404, { error: 'persona_not_found' });
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        const version = snapshot.versions.find((item) => item.personaId === personaId && item.version === Number(versionNumber));
+        return version ? json(res, 200, version) : json(res, 404, { error: 'persona_version_not_found' });
+      }
+      if (req.method === 'POST' && /^\/api\/personas\/[^/]+\/generate$/.test(url.pathname)) {
+        const personaId = url.pathname.split('/')[3]!; const input = await body(req); const snapshot = await formationFromStore(store); const existing: any = snapshot.personas.find((item) => item.id === personaId);
+        if (!existing) return json(res, 404, { error: 'persona_not_found' });
+        if (!ownerOfFormationResource(existing, actor)) return json(res, 403, { error: 'forbidden' });
+        const modules = defaultPersonaModules().map((definition) => ({ ...definition, generate: async (context: any) => {
+          if ((input.failModules ?? []).includes(definition.key)) throw new Error('mock_module_failure');
+          if ((input.missingOutputs ?? []).includes(definition.key)) return undefined;
+          return definition.generate(context);
+        } }));
+        const pipeline = new LocalPersonaFormationPipeline(modules, formationMetadata(input), snapshot);
+        try {
+          const version = await pipeline.generate(personaId);
+          await persistFormation(store, pipeline.state, actor);
+          if (version.status === 'generated') {
+            const artifacts = await artifactsFromStore(store);
+            for (const kind of ['character-bible', 'physical-identity-bible'] as const) {
+              const supplied = kind === 'character-bible' ? input.characterBible : input.physicalIdentityBible;
+              const artifact: FormationArtifact = { id: `${kind}_${version.id}`, kind, personaVersionId: version.id, personaId, version: version.version, status: 'generated', content: supplied ?? { version: version.version }, ownerId: actor.ownerId, createdAt: new Date().toISOString() };
+              if (!artifacts.some((item) => item.id === artifact.id)) await persistArtifact(store, artifact, actor);
+            }
+          }
+          return json(res, version.status === 'generated' ? 201 : 422, version);
+        } catch (error: unknown) { return json(res, errorStatus(error instanceof Error ? error.message : 'generation_failed'), { error: error instanceof Error ? error.message : 'generation_failed' }); }
+      }
+      if (req.method === 'GET' && /^\/api\/persona-versions\/[^/]+\/module-runs$/.test(url.pathname)) {
+        const versionId = url.pathname.split('/')[3]!; const snapshot = await formationFromStore(store); const version: any = snapshot.versions.find((item) => item.id === versionId);
+        if (!version) return json(res, 404, { error: 'persona_version_not_found' });
+        const persona: any = snapshot.personas.find((item) => item.id === version.personaId);
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        return json(res, 200, snapshot.moduleRuns.filter((item) => item.personaVersionId === versionId));
+      }
+      if (req.method === 'GET' && /^\/api\/persona-versions\/[^/]+\/(character-bible|physical-identity-bible)$/.test(url.pathname)) {
+        const [, , , versionId, biblePath] = url.pathname.split('/'); const snapshot = await formationFromStore(store); const version: any = snapshot.versions.find((item) => item.id === versionId);
+        if (!version) return json(res, 404, { error: 'persona_version_not_found' });
+        const persona: any = snapshot.personas.find((item) => item.id === version.personaId);
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        const kind = biblePath === 'character-bible' ? 'character-bible' : 'physical-identity-bible';
+        const artifact = (await artifactsFromStore(store)).find((item) => item.personaVersionId === versionId && item.kind === kind);
+        return artifact ? json(res, 200, { id: artifact.id, personaVersionId: artifact.personaVersionId, version: artifact.version, status: artifact.status, ...((artifact.content && typeof artifact.content === 'object') ? artifact.content : { content: artifact.content }) }) : json(res, 404, { error: `${kind}_not_found` });
+      }
+      if (req.method === 'GET' && /^\/api\/module-runs\/[^/]+$/.test(url.pathname)) {
+        const runId = url.pathname.split('/')[3]!; const snapshot = await formationFromStore(store); const run: any = snapshot.moduleRuns.find((item) => item.id === runId);
+        if (!run) return json(res, 404, { error: 'module_run_not_found' });
+        const version: any = snapshot.versions.find((item) => item.id === run.personaVersionId); const persona: any = snapshot.personas.find((item) => item.id === version?.personaId);
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        return json(res, 200, run);
+      }
+      if (req.method === 'POST' && /^\/api\/module-runs\/[^/]+\/retry$/.test(url.pathname)) {
+        const runId = url.pathname.split('/')[3]!; const snapshot = await formationFromStore(store); const pipeline = new LocalPersonaFormationPipeline(defaultPersonaModules(), formationMetadata(await body(req)), snapshot);
+        try { const run = await pipeline.retryModule(runId); await persistFormation(store, pipeline.state, actor); return json(res, run.status === 'success' ? 200 : 422, run); }
+        catch (error: unknown) { return json(res, errorStatus(error instanceof Error ? error.message : 'retry_failed'), { error: error instanceof Error ? error.message : 'retry_failed' }); }
+      }
+      if (req.method === 'GET' && /^\/api\/generation-jobs\/[^/]+$/.test(url.pathname)) {
+        const jobId = url.pathname.split('/')[3]!; const job = (await formationFromStore(store)).jobs.find((item) => item.id === jobId); return job ? json(res, 200, job) : json(res, 404, { error: 'generation_job_not_found' });
+      }
+      if (req.method === 'POST' && /^\/api\/personas\/[^/]+\/approval-pack$/.test(url.pathname)) {
+        const personaId = url.pathname.split('/')[3]!; const input = await body(req); const snapshot = await formationFromStore(store); const persona: any = snapshot.personas.find((item) => item.id === personaId);
+        if (!persona) return json(res, 404, { error: 'persona_not_found' });
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        const pipeline = new LocalPersonaFormationPipeline(defaultPersonaModules(), formationMetadata(input), snapshot);
+        try {
+          const pack: any = pipeline.createApprovalPackage(personaId); const artifacts = await artifactsFromStore(store); const versionArtifacts = artifacts.filter((item) => item.personaVersionId === pack.personaVersionId);
+          pack.characterBibleId = versionArtifacts.find((item) => item.kind === 'character-bible')?.id;
+          pack.physicalIdentityBibleId = versionArtifacts.find((item) => item.kind === 'physical-identity-bible')?.id;
+          pack.ownerId = actor.ownerId;
+          await persistFormation(store, pipeline.state, actor); return json(res, 201, pack);
+        } catch (error: unknown) { return json(res, errorStatus(error instanceof Error ? error.message : 'approval_package_blocked'), { error: error instanceof Error ? error.message : 'approval_package_blocked' }); }
+      }
+      if (req.method === 'GET' && /^\/api\/approval-packs\/[^/]+$/.test(url.pathname)) {
+        const packId = url.pathname.split('/')[3]!; const snapshot = await formationFromStore(store); const pack: any = snapshot.approvalPackages.find((item) => item.id === packId);
+        if (!pack) return json(res, 404, { error: 'approval_package_not_found' });
+        const persona: any = snapshot.personas.find((item) => item.id === pack.personaId);
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        return json(res, 200, pack);
+      }
+      if (req.method === 'POST' && /^\/api\/approval-packs\/[^/]+\/approve$/.test(url.pathname)) {
+        const packId = url.pathname.split('/')[3]!; const input = await body(req); const snapshot = await formationFromStore(store); const existing: any = snapshot.approvalPackages.find((item) => item.id === packId);
+        if (!existing) return json(res, 404, { error: 'approval_package_not_found' });
+        const persona: any = snapshot.personas.find((item) => item.id === existing.personaId);
+        if (!ownerOfFormationResource(persona, actor)) return json(res, 403, { error: 'forbidden' });
+        if (!Number.isInteger(input.personaVersion)) return json(res, 422, { error: 'persona_version_required' });
+        const pipeline = new LocalPersonaFormationPipeline(defaultPersonaModules(), formationMetadata(input), snapshot);
+        try { const pack = pipeline.approvePackage(packId, input.personaVersion); await persistFormation(store, pipeline.state, actor); return json(res, 200, pack); }
+        catch (error: unknown) { return json(res, errorStatus(error instanceof Error ? error.message : 'approval_blocked'), { error: error instanceof Error ? error.message : 'approval_blocked' }); }
+      }
 
       // S1 - Opportunity Radar
       if (req.method === 'POST' && url.pathname === '/api/opportunities') { const item = stampOwner(actor, { id: id(), ...(await body(req)), status: 'candidate' }); return json(res, 201, await store.append('opportunities', item)); }

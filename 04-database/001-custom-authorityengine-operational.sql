@@ -213,6 +213,38 @@ create table if not exists custom_authorityengine.events (
   unique (project_id, id)
 );
 
+create table if not exists custom_authorityengine.authority_outbox_events (
+  id text primary key,
+  project_id text not null references custom_authorityengine.projects(id) on delete restrict,
+  owner_id text not null,
+  event_type text not null,
+  aggregate_type text not null,
+  aggregate_id text not null,
+  status text not null check (status in ('pending','dispatching','delivered','retrying','dead_letter','cancelled')),
+  attempts integer not null default 0 check (attempts >= 0),
+  max_attempts integer not null default 3 check (max_attempts > 0),
+  next_retry_at timestamptz,
+  last_error text,
+  dead_lettered_at timestamptz,
+  delivered_at timestamptz,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (project_id, id)
+);
+
+create table if not exists custom_authorityengine.outbox_receipts (
+  id text primary key,
+  project_id text not null references custom_authorityengine.projects(id) on delete restrict,
+  owner_id text not null,
+  receipt_id text not null,
+  event_id text not null,
+  consumer text not null,
+  response jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  unique (project_id, receipt_id)
+);
+
 create index if not exists idx_ae_projects_owner on custom_authorityengine.projects(owner_id);
 create index if not exists idx_ae_opportunities_project_owner on custom_authorityengine.opportunities(project_id, owner_id);
 create index if not exists idx_ae_research_project_opportunity on custom_authorityengine.research(project_id, opportunity_id);
@@ -228,6 +260,8 @@ create index if not exists idx_ae_receipts_project_brief on custom_authorityengi
 create index if not exists idx_ae_metrics_project_brief on custom_authorityengine.metrics(project_id, brief_id);
 create index if not exists idx_ae_feedback_project_metric on custom_authorityengine.feedback(project_id, metric_id);
 create index if not exists idx_ae_events_project_type_created on custom_authorityengine.events(project_id, type, created_at desc);
+create index if not exists idx_ae_outbox_project_status_retry on custom_authorityengine.authority_outbox_events(project_id, status, next_retry_at);
+create index if not exists idx_ae_outbox_receipts_event_consumer on custom_authorityengine.outbox_receipts(project_id, event_id, consumer);
 
 alter table custom_authorityengine.projects enable row level security;
 alter table custom_authorityengine.opportunities enable row level security;
@@ -244,6 +278,8 @@ alter table custom_authorityengine.receipts enable row level security;
 alter table custom_authorityengine.metrics enable row level security;
 alter table custom_authorityengine.feedback enable row level security;
 alter table custom_authorityengine.events enable row level security;
+alter table custom_authorityengine.authority_outbox_events enable row level security;
+alter table custom_authorityengine.outbox_receipts enable row level security;
 
 alter table custom_authorityengine.projects force row level security;
 alter table custom_authorityengine.opportunities force row level security;
@@ -260,6 +296,8 @@ alter table custom_authorityengine.receipts force row level security;
 alter table custom_authorityengine.metrics force row level security;
 alter table custom_authorityengine.feedback force row level security;
 alter table custom_authorityengine.events force row level security;
+alter table custom_authorityengine.authority_outbox_events force row level security;
+alter table custom_authorityengine.outbox_receipts force row level security;
 
 drop policy if exists projects_isolated on custom_authorityengine.projects;
 create policy projects_isolated on custom_authorityengine.projects
@@ -295,3 +333,7 @@ drop policy if exists feedback_isolated on custom_authorityengine.feedback;
 create policy feedback_isolated on custom_authorityengine.feedback for all using (project_id = custom_authorityengine.current_project_id() and owner_id = custom_authorityengine.current_owner_id()) with check (project_id = custom_authorityengine.current_project_id() and owner_id = custom_authorityengine.current_owner_id());
 drop policy if exists events_isolated on custom_authorityengine.events;
 create policy events_isolated on custom_authorityengine.events for all using (project_id = custom_authorityengine.current_project_id() and owner_id = custom_authorityengine.current_owner_id()) with check (project_id = custom_authorityengine.current_project_id() and owner_id = custom_authorityengine.current_owner_id());
+drop policy if exists authority_outbox_events_isolated on custom_authorityengine.authority_outbox_events;
+create policy authority_outbox_events_isolated on custom_authorityengine.authority_outbox_events for all using (project_id = custom_authorityengine.current_project_id() and owner_id = custom_authorityengine.current_owner_id()) with check (project_id = custom_authorityengine.current_project_id() and owner_id = custom_authorityengine.current_owner_id());
+drop policy if exists outbox_receipts_isolated on custom_authorityengine.outbox_receipts;
+create policy outbox_receipts_isolated on custom_authorityengine.outbox_receipts for all using (project_id = custom_authorityengine.current_project_id() and owner_id = custom_authorityengine.current_owner_id()) with check (project_id = custom_authorityengine.current_project_id() and owner_id = custom_authorityengine.current_owner_id());

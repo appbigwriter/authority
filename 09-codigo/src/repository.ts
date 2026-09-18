@@ -34,6 +34,11 @@ const requireContext = (context?: Partial<PersistenceContext>): PersistenceConte
 };
 
 const collectionTables = {
+  outbox_events: 'custom_authorityengine.authority_outbox_events',
+  outbox_receipts: 'custom_authorityengine.outbox_receipts',
+  personas: 'custom_authorityengine.personas',
+  persona_versions: 'custom_authorityengine.persona_versions',
+  persona_version_transitions: 'custom_authorityengine.persona_version_transitions',
   opportunities: 'custom_authorityengine.opportunities',
   seeds: 'custom_authorityengine.influencer_seeds',
   profiles: 'custom_authorityengine.profiles',
@@ -82,7 +87,7 @@ export class JsonStoreFake implements PersistenceStore {
 
   constructor(private readonly file: string) {}
 
-  async read(): Promise<StoreData> {
+  async read(_context?: Partial<PersistenceContext>): Promise<StoreData> {
     try {
       return { ...cloneEmpty(), ...JSON.parse(await readFile(this.file, 'utf8')) as Partial<StoreData> };
     } catch (error: unknown) {

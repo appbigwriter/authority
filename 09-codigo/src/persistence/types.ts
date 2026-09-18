@@ -13,6 +13,11 @@ import type {
   OpportunityResearch,
   PostMachineOutput,
 } from '../types-extended.js';
+import type {
+  Persona,
+  PersonaVersion,
+  PersonaVersionTransition,
+} from '../persona-domain.js';
 
 export interface AssetRecord {
   id: string;
@@ -32,7 +37,15 @@ export interface EventRecord {
   createdAt?: string;
 }
 
+export interface OutboxEventRecord { id: string; eventId: string; eventType: string; aggregateId: string; payload: Record<string, unknown>; status: 'pending' | 'retrying' | 'delivered' | 'dead_letter'; attempts: number; maxAttempts: number; lastError?: string; nextRetryAt?: string; deadLetteredAt?: string; createdAt: string; envelope?: Record<string, unknown>; }
+export interface OutboxReceiptRecord { id: string; receiptId: string; eventId: string; consumer: string; response: unknown; createdAt: string; }
+
 export interface StoreData {
+  outbox_events: OutboxEventRecord[];
+  outbox_receipts: OutboxReceiptRecord[];
+  personas: Persona[];
+  persona_versions: PersonaVersion[];
+  persona_version_transitions: PersonaVersionTransition[];
   opportunities: Opportunity[];
   seeds: unknown[];
   profiles: Profile[];
@@ -69,6 +82,11 @@ export const operationalCollections = [
 ] as const satisfies readonly StoreCollection[];
 
 export const emptyStoreData = Object.freeze({
+  outbox_events: [],
+  outbox_receipts: [],
+  personas: [],
+  persona_versions: [],
+  persona_version_transitions: [],
   opportunities: [],
   seeds: [],
   profiles: [],
