@@ -1,69 +1,40 @@
 # Authority Engine — Schema de Persistência Base
 
 ## Estado
-Rascunho de schema para migrar o `JsonStore` para Postgres/Supabase. Ainda não aplicado em banco externo.
+AUTH-003 implementado localmente em `04-database/001-custom-authorityengine-operational.sql`.
 
-```sql
-create table if not exists opportunities (
-  id text primary key,
-  niche text not null,
-  subniche text not null,
-  problem text not null,
-  audience text not null,
-  status text not null check (status in ('candidate','qualified','blocked','selected','archived')),
-  payload jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+O arquivo SQL é um contrato local idempotente para Postgres/Supabase e **não foi aplicado remotamente**.
 
-create table if not exists influencer_seeds (
-  id text primary key,
-  opportunity_id text not null references opportunities(id),
-  status text not null check (status in ('proposed','selected','blocked','archived')),
-  payload jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+## Escopo coberto
 
-create table if not exists profiles (
-  id text primary key,
-  seed_id text not null references influencer_seeds(id),
-  status text not null check (status in ('development','review','approved','blocked','archived')),
-  payload jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+- Schema qualificado: `custom_authorityengine`.
+- Coleções operacionais de `StoreData` mapeadas:
+  - `opportunities` → `custom_authorityengine.opportunities`
+  - `seeds` → `custom_authorityengine.influencer_seeds`
+  - `profiles` → `custom_authorityengine.profiles`
+  - `content` → `custom_authorityengine.content_items`
+  - `briefs` → `custom_authorityengine.briefs`
+  - `assets` → `custom_authorityengine.assets`
+  - `approvals` → `custom_authorityengine.approvals`
+  - `receipts` → `custom_authorityengine.receipts`
+  - `metrics` → `custom_authorityengine.metrics`
+  - `feedback` → `custom_authorityengine.feedback`
+  - `events` → `custom_authorityengine.events`
+  - `research` → `custom_authorityengine.research`
+  - `farmer_profiles` → `custom_authorityengine.farmer_profiles`
+  - `post_machine` → `custom_authorityengine.post_machine_outputs`
+- Ownership obrigatório por `project_id` e `owner_id`.
+- RLS fail-closed via `current_setting('app.current_project_id', true)` e `current_setting('app.current_owner_id', true)`: sem contexto local configurado, policies não liberam leitura/escrita.
+- Índices por projeto, owner e principais relações operacionais.
+- FKs qualificadas para as relações conhecidas; campos opcionais preservam compatibilidade com payloads legados enquanto produto não decide cardinalidade obrigatória de todos os fluxos.
 
-create table if not exists content_items (
-  id text primary key,
-  profile_id text not null references profiles(id),
-  status text not null check (status in ('draft','review','awaiting_human_approval','published','blocked','archived')),
-  payload jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+## Bloqueio de migração remota
 
-create table if not exists approvals (
-  id text primary key,
-  target_id text not null,
-  approved boolean not null,
-  scope text not null,
-  approved_at timestamptz not null,
-  approver text not null,
-  payload jsonb not null default '{}'::jsonb
-);
-
-create index if not exists idx_seeds_opportunity on influencer_seeds(opportunity_id);
-create index if not exists idx_profiles_seed on profiles(seed_id);
-create index if not exists idx_content_profile on content_items(profile_id);
-create index if not exists idx_approvals_target on approvals(target_id);
-```
-
-## Bloqueio de migração
 Aplicar somente após:
 
 - contrato Supabase/Postgres confirmado;
-- schema/tenant/RLS definido;
-- migration idempotente revisada;
+- papéis runtime e forma oficial de setar `app.current_project_id`/`app.current_owner_id` confirmados pelo agente de runtime/auth;
+- decisão de produto sobre FKs opcionais versus obrigatórias para payloads legados;
+- migration revisada em banco local Postgres real;
 - backup/rollback definidos;
-- aprovação de Sergio para alteração externa.
+- aprovação humana explícita para alteração externa.

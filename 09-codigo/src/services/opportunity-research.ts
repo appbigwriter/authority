@@ -1,5 +1,6 @@
 import type { Opportunity } from '../types.js';
 import type { OpportunityResearch as ExtResearch } from '../types-extended.js';
+import type { PersistenceStore } from '../repository.js';
 
 const RESEARCH_PROMPT = `
 Você é um analista de mercado especializado em descobrir oportunidades de nicho para criação de personas de autoridade.
@@ -87,6 +88,6 @@ export async function researchOpportunityWithLLM(opportunity: Opportunity): Prom
   }
 }
 
-export function createResearchRecord(store: any, research: ExtResearch) {
+export function createResearchRecord(store: PersistenceStore, research: ExtResearch) {
   return store.append('research', research);
 }

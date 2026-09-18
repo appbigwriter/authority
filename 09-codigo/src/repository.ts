@@ -1,53 +1,183 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import {
+  emptyStoreData,
+  operationalCollections,
+  type PersistenceContext,
+  type PersistenceStore,
+  type SqlClient,
+  type StoreCollection,
+  type StoreData,
+} from './persistence/types.js';
 
-export type EvidenceKind = 'fact' | 'hypothesis' | 'recommendation' | 'risk' | 'blocker';
-export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+export type {
+  AssetRecord,
+  EventRecord,
+  PersistenceContext,
+  PersistenceStore,
+  SqlClient,
+  StoreCollection,
+  StoreData,
+} from './persistence/types.js';
 
-export interface Evidence { source: string; accessedAt: string; observation: string; kind: EvidenceKind; limitation?: string; }
-export interface MarketplaceProduct { id: string; marketplace: string; title: string; category: string; niche: string; subniche: string; price?: number; currency?: string; availability: 'in_stock' | 'out_of_stock' | 'unknown'; observedAt: string; evidence: Evidence[]; }
-export interface TrendSignal { id: string; niche: string; subniche: string; query: string; strength: number; period: string; evidence: Evidence[]; }
-export interface Opportunity { id: string; niche: string; subniche: string; problem: string; audience: string; products: MarketplaceProduct[]; trends: TrendSignal[]; scores: { demand: number; intent: number; content: number; productFit: number; authority: number; risk: number; total: number }; risks: string[]; evidence: Evidence[]; status: 'candidate' | 'qualified' | 'blocked'; }
-export interface InfluencerSeed { id: string; opportunityId: string; name: string; archetype: string; function: string; mentorRole: 'mentor'; audience: string; problem: string; thesis: string; promise: string; traits: string[]; decisionCompass: string; not: string[]; backstory: string; differentiation: string; voice: string; visualDirection: string; anchorFace: string; signatureTrait: string; formats: string[]; monetizationPaths: string[]; risks: string[]; antiNetwork: string[]; score: number; status: 'proposed' | 'selected' | 'blocked'; }
-export interface Profile { id: string; seedId: string; name: string; brand: string; bio: string; disclosure: string; thesis: string; promise: string; mentorRole: 'mentor'; archetype: string; traits: string[]; decisionCompass: string; not: string[]; backstory: string; authorityMethod: string; voice: { tone: string; vocabulary: string[]; prohibited: string[] }; visual: { style: string; palette: string; continuity: string; anchorFace: string; signatureTrait: string; prompts: string[] }; pillars: string[]; formats: string[]; guardrails: string[]; claims: { allowed: string[]; soften: string[]; prohibited: string[] }; aboutPage: string; footerDisclaimer: string; monetizationModel: string[]; status: 'development' | 'review' | 'approved'; }
-export interface ContentBrief { id: string; profileId: string; topic: string; pillar: string; format: string; channel: string; objective: string; product?: string; sources: Evidence[]; status: 'draft' | 'review' | 'awaiting_human_approval' | 'published' | 'blocked'; }
-export interface ContentDraft { briefId: string; title: string; body: string; caption: string; cta: string; disclosure?: string; version: string; status: ContentBrief['status']; }
-export interface MarketplaceAdapter { name: string; search(input: { niche: string; subniche?: string }): Promise<{ products: MarketplaceProduct[]; trends: TrendSignal[] }>; }
+const cloneEmpty = (): StoreData => structuredClone(emptyStoreData) as StoreData;
 
-export interface InfluencerSeedFull { id: string; opportunityId: string; name: string; archetype: string; function: string; mentorRole: 'mentor'; audience: string; problem: string; thesis: string; promise: string; traits: string[]; decisionCompass: string; not: string[]; backstory: string; differentiation: string; voice: string; visualDirection: string; anchorFace: string; signatureTrait: string; formats: string[]; monetizationPaths: string[]; risks: string[]; antiNetwork: string[]; score: number; status: 'proposed' | 'selected' | 'blocked'; researchRef: string; }
-export interface FarmerProfile { id: string; seedId: string; name: string; brand: string; bio: string; disclosure: string; thesis: string; promise: string; mentorRole: 'mentor'; archetype: string; traits: string[]; decisionCompass: string; not: string[]; backstory: string; authorityMethod: string; voice: { tone: string; vocabulary: string[]; prohibited: string[] }; visual: { style: string; palette: string; continuity: string; anchorFace: string; signatureTrait: string; prompts: string[]; credibilitySettings: string[]; credibilityLocations: string[] }; pillars: string[]; formats: string[]; guardrails: string[]; claims: { allowed: string[]; soften: string[]; prohibited: string[] }; aboutPage: string; footerDisclaimer: string; monetizationModel: string[]; crossCuttingThemes: string[]; socialContentIdeas: { blog: string[]; video: string[]; shorts: string[]; stories: string[]; }; weeklyContentPlan: any[]; status: 'development' | 'review' | 'approved'; createdAt: string; }
-export interface PostMachineOutput { id: string; profileId: string; week: number; blogArticles: any[]; videoScripts: any[]; shorts: any[]; stories: any[]; status: 'draft' | 'review' | 'approved' | 'published'; createdAt: string; }
-export interface OpportunityResearch { id: string; opportunityId: string; research: any; sources: any[]; createdAt: string; status: 'pending' | 'completed' | 'failed'; }
+const isObjectWithId = (item: unknown): item is { id: string } => (
+  typeof item === 'object' && item !== null && 'id' in item && typeof (item as { id?: unknown }).id === 'string'
+);
 
-export interface StoreData { 
-  opportunities: Opportunity[]; 
-  seeds: any[]; 
-  profiles: Profile[]; 
-  content: ContentDraft[]; 
-  briefs: ContentBrief[]; 
-  assets: any[]; 
-  approvals: any[]; 
-  receipts: any[]; 
-  metrics: any[]; 
-  feedback: any[]; 
-  events: any[]; 
-  research: OpportunityResearch[]; 
-  farmer_profiles: FarmerProfile[]; 
-  post_machine: any[]; 
-}
-const empty: StoreData = { opportunities: [], seeds: [], profiles: [], content: [], briefs: [], assets: [], approvals: [], receipts: [], metrics: [], feedback: [], events: [], research: [], farmer_profiles: [], post_machine: [] };
+const requireContext = (context?: Partial<PersistenceContext>): PersistenceContext => {
+  if (!context?.projectId || !context.ownerId) {
+    throw new Error('persistence_context_required');
+  }
+  return { projectId: context.projectId, ownerId: context.ownerId };
+};
 
-export class JsonStore {
+const collectionTables = {
+  opportunities: 'custom_authorityengine.opportunities',
+  seeds: 'custom_authorityengine.influencer_seeds',
+  profiles: 'custom_authorityengine.profiles',
+  content: 'custom_authorityengine.content_items',
+  briefs: 'custom_authorityengine.briefs',
+  assets: 'custom_authorityengine.assets',
+  approvals: 'custom_authorityengine.approvals',
+  receipts: 'custom_authorityengine.receipts',
+  metrics: 'custom_authorityengine.metrics',
+  feedback: 'custom_authorityengine.feedback',
+  events: 'custom_authorityengine.events',
+  research: 'custom_authorityengine.research',
+  farmer_profiles: 'custom_authorityengine.farmer_profiles',
+  post_machine: 'custom_authorityengine.post_machine_outputs',
+} as const satisfies Record<StoreCollection, string>;
+
+type PersistedRow = { id: string; payload: unknown };
+
+type UnknownRecord = Record<string, unknown>;
+
+const readProperty = (value: unknown, key: string): unknown => (
+  typeof value === 'object' && value !== null ? (value as UnknownRecord)[key] : undefined
+);
+
+const pickStatus = (value: unknown): string | null => {
+  const status = readProperty(value, 'status');
+  return typeof status === 'string' ? status : null;
+};
+
+const pickOptionalString = (value: unknown, key: string): string | null => {
+  const item = readProperty(value, key);
+  return typeof item === 'string' && item.length > 0 ? item : null;
+};
+
+const requirePayloadId = (value: unknown): string => {
+  if (!isObjectWithId(value)) throw new Error('payload_id_required');
+  return value.id;
+};
+
+/**
+ * Fake JSON persistence for local smoke tests only. Production/runtime relational
+ * persistence must depend on PersistenceStore instead of this concrete fake.
+ */
+export class JsonStoreFake implements PersistenceStore {
+  readonly kind = 'fake-json' as const;
+
   constructor(private readonly file: string) {}
+
   async read(): Promise<StoreData> {
-    try { return { ...empty, ...JSON.parse(await readFile(this.file, 'utf8')) as Partial<StoreData> }; }
-    catch (error: unknown) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return structuredClone(empty); throw error; }
+    try {
+      return { ...cloneEmpty(), ...JSON.parse(await readFile(this.file, 'utf8')) as Partial<StoreData> };
+    } catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return cloneEmpty();
+      throw error;
+    }
   }
-  async append(collection: keyof StoreData, value: unknown): Promise<unknown> {
-    const data = await this.read(); data[collection].push(value); await mkdir(dirname(this.file), { recursive: true }); await writeFile(this.file, JSON.stringify(data, null, 2)); return value;
+
+  async append<C extends StoreCollection>(collection: C, value: unknown): Promise<unknown> {
+    const data = await this.read();
+    data[collection].push(value as never);
+    await mkdir(dirname(this.file), { recursive: true });
+    await writeFile(this.file, JSON.stringify(data, null, 2));
+    return value;
   }
-  async replace(collection: keyof StoreData, id: string, value: unknown): Promise<unknown> {
-    const data = await this.read(); const index = data[collection].findIndex((item) => typeof item === 'object' && item !== null && 'id' in item && item.id === id);
-    if (index < 0) throw new Error('not_found'); data[collection][index] = value; await mkdir(dirname(this.file), { recursive: true }); await writeFile(this.file, JSON.stringify(data, null, 2)); return value;
+
+  async replace<C extends StoreCollection>(collection: C, id: string, value: unknown): Promise<unknown> {
+    const data = await this.read();
+    const items = data[collection] as unknown[];
+    const index = items.findIndex((item) => isObjectWithId(item) && item.id === id);
+    if (index < 0) throw new Error('not_found');
+    items[index] = value;
+    await mkdir(dirname(this.file), { recursive: true });
+    await writeFile(this.file, JSON.stringify(data, null, 2));
+    return value;
   }
 }
+
+/** @deprecated Use JsonStoreFake in tests or RelationalAuthorityStore in runtime wiring. */
+export { JsonStoreFake as JsonStore };
+
+export class RelationalAuthorityStore implements PersistenceStore {
+  readonly kind = 'relational-postgres' as const;
+
+  constructor(private readonly client: SqlClient, private readonly defaultContext?: Partial<PersistenceContext>) {}
+
+  private context(context?: Partial<PersistenceContext>): PersistenceContext {
+    return requireContext({ ...this.defaultContext, ...context });
+  }
+
+  async read(context?: Partial<PersistenceContext>): Promise<StoreData> {
+    const { projectId, ownerId } = this.context(context);
+    const data = cloneEmpty();
+
+    await this.client.query(
+      `select set_config('app.current_project_id', $1, true), set_config('app.current_owner_id', $2, true)`,
+      [projectId, ownerId],
+    );
+
+    for (const collection of operationalCollections) {
+      const table = collectionTables[collection];
+      const result = await this.client.query<PersistedRow>(
+        `select id, payload from ${table} where project_id = $1 and owner_id = $2 order by created_at asc, id asc`,
+        [projectId, ownerId],
+      );
+      data[collection] = result.rows.map((row) => ({ ...(row.payload as object), id: row.id })) as never;
+    }
+
+    return data;
+  }
+
+  async append<C extends StoreCollection>(collection: C, value: StoreData[C][number], context?: Partial<PersistenceContext>): Promise<StoreData[C][number]> {
+    const { projectId, ownerId } = this.context(context);
+    const id = requirePayloadId(value);
+    const table = collectionTables[collection];
+    await this.client.query(
+      `insert into ${table} (id, project_id, owner_id, status, payload) values ($1, $2, $3, $4, $5::jsonb)`,
+      [id, projectId, ownerId, pickStatus(value), JSON.stringify(value)],
+    );
+    return value;
+  }
+
+  async replace<C extends StoreCollection>(collection: C, id: string, value: unknown, context?: Partial<PersistenceContext>): Promise<unknown> {
+    const { projectId, ownerId } = this.context(context);
+    const table = collectionTables[collection];
+    const result = await this.client.query<{ id: string }>(
+      `update ${table} set status = $1, payload = $2::jsonb, updated_at = now() where id = $3 and project_id = $4 and owner_id = $5 returning id`,
+      [pickStatus(value), JSON.stringify(value), id, projectId, ownerId],
+    );
+    if (result.rows.length === 0) throw new Error('not_found');
+    return value;
+  }
+}
+
+export const relationalTableForCollection = (collection: StoreCollection): string => collectionTables[collection];
+export const persistenceForeignKeys = {
+  research: { column: 'opportunity_id', collection: 'opportunities', value: (record: unknown) => pickOptionalString(record, 'opportunityId') },
+  seeds: { column: 'opportunity_id', collection: 'opportunities', value: (record: unknown) => pickOptionalString(record, 'opportunityId') },
+  profiles: { column: 'seed_id', collection: 'seeds', value: (record: unknown) => pickOptionalString(record, 'seedId') },
+  farmer_profiles: { column: 'seed_id', collection: 'seeds', value: (record: unknown) => pickOptionalString(record, 'seedId') },
+  briefs: { column: 'profile_id', collection: 'profiles', value: (record: unknown) => pickOptionalString(record, 'profileId') },
+  content: { column: 'brief_id', collection: 'briefs', value: (record: unknown) => pickOptionalString(record, 'briefId') },
+  receipts: { column: 'brief_id', collection: 'briefs', value: (record: unknown) => pickOptionalString(record, 'briefId') },
+  metrics: { column: 'brief_id', collection: 'briefs', value: (record: unknown) => pickOptionalString(record, 'briefId') },
+  feedback: { column: 'brief_id', collection: 'briefs', value: (record: unknown) => pickOptionalString(record, 'briefId') },
+  assets: { column: 'brief_id', collection: 'briefs', value: (record: unknown) => pickOptionalString(record, 'briefId') },
+  post_machine: { column: 'profile_id', collection: 'farmer_profiles', value: (record: unknown) => pickOptionalString(record, 'profileId') },
+} as const;

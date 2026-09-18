@@ -6,8 +6,15 @@ import { createOpportunity, createOpportunityDossier, deduplicateProducts, detec
 test('OPR-001 adapters Amazon e secundário falham fechado sem credencial', async () => {
   for (const adapter of [amazonAdapterFromEnv(), marketplaceAdapterFromEnv()]) {
     assert.equal(adapter.source.configured, false);
-    await assert.rejects(adapter.search({ niche: 'gear' }), new RegExp(`${adapter.name}_integration_not_configured`));
+    await assert.rejects(adapter.search({ niche: 'gear' }), new RegExp(`${adapter.name}_credential_missing`));
   }
+});
+
+test('OPR-001b adapter configurado sem contrato/live gate não chama provedor', async () => {
+  const adapter = new (await import('../marketplace-adapters.js')).ConfiguredMarketplaceAdapter({ name: 'amazon', baseUrl: 'https://example.invalid/search', apiKey: 'synthetic-test-key' });
+  assert.equal(adapter.source.configured, false);
+  assert.equal(adapter.source.credentialStatus, 'configured');
+  await assert.rejects(adapter.search({ niche: 'gear' }), /amazon_contract_unverified/);
 });
 
 test('OPR-002 normaliza e deduplica apenas dentro da mesma fonte', () => {

@@ -1,5 +1,6 @@
 export type EvidenceKind = 'fact' | 'hypothesis' | 'recommendation' | 'risk' | 'blocker';
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+export interface RuntimeOwned { ownerId?: string; createdBy?: string; }
 export interface Evidence { source: string; accessedAt: string; observation: string; kind: EvidenceKind; limitation?: string | undefined; }
 export interface MarketplaceSource { name: string; endpoint: string; version: string; scope: string; configured: boolean; credentialStatus: 'configured' | 'missing' | 'expired' | 'unknown'; checkedAt: string; limitation: string; }
 export type Availability = 'in_stock' | 'out_of_stock' | 'unknown';
@@ -30,8 +31,8 @@ export type EditorialState = 'draft' | 'review' | 'awaiting_human_approval' | 'p
 export interface ContentBrief { id: string; profileId: string; topic: string; pillar: string; format: string; channel: string; objective: string; product?: string; sources: Evidence[]; owner?: string; priority?: 'low' | 'medium' | 'high'; nextGate?: string; approvedAt?: string; status: EditorialState; }
 export interface AssetSource { source: string; license: string; attribution?: string; }
 export interface AssetVersion { id: string; briefId: string; parentId?: string | undefined; channel: string; version: string; name: string; kind: 'copy' | 'image' | 'video' | 'link'; content: string; specification: { maxCharacters?: number; format: string }; source?: AssetSource; disclosure: string; sources: Evidence[]; }
-export interface ContentDraft { id?: string; briefId: string; title: string; body: string; caption: string; cta: string; disclosure?: string; sources?: Evidence[]; channel?: string; format?: string; assetIds?: string[]; version: string; status: EditorialState; }
-export interface Approval { id: string; targetId: string; targetVersion: string; channel: string; scope: 'publication'; approved: true; approver: string; approvedAt: string; }
+export interface ContentDraft extends RuntimeOwned { id?: string; briefId: string; title: string; body: string; caption: string; cta: string; disclosure?: string; sources?: Evidence[]; channel?: string; format?: string; assetIds?: string[]; version: string; status: EditorialState; }
+export interface Approval extends RuntimeOwned { id: string; targetId: string; targetVersion: string; channel: string; scope: 'publication'; approved: true; approver: string; approvedAt: string; }
 export interface PublicationReceipt { id: string; draftId: string; briefId: string; channel: string; version: string; provider: string; externalId: string; publishedAt: string; operator: string; mode: 'assisted' | 'fake'; }
 export interface ChannelAdapter { name: string; publish(input: { draft: ContentDraft; channel: string; approval: Approval }): Promise<PublicationReceipt>; }
 export interface MetricRecord { id: string; receiptId?: string; briefId: string; draftId?: string; version: string; channel: string; period: { from: string; to: string }; source: string; attention: { impressions?: number; views?: number; saves?: number; shares?: number }; trust: { comments?: number; positiveSignals?: number; negativeSignals?: number }; traffic: { clicks?: number; ctr?: number }; leads: { count?: number; quality?: string }; conversion: { count?: number; rate?: number; revenue?: number; currency?: string }; sufficient: boolean; limitation?: string; }

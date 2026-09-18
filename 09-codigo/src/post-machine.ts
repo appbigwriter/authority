@@ -64,6 +64,8 @@ export class UnconfiguredPublishingAdapter implements ChannelAdapter {
 }
 export async function publishAssisted(draft: ContentDraft, approval: Approval | undefined, adapter: ChannelAdapter): Promise<PublicationReceipt> {
   if (draft.status !== 'awaiting_human_approval') throw new Error('human_approval_required');
+  if (!draft.disclosure?.trim()) throw new Error('disclosure_required');
+  if (!draft.sources?.length) throw new Error('sources_required');
   if (!approval?.approved || approval.scope !== 'publication' || approval.targetVersion !== draft.version || approval.channel !== draft.channel) throw new Error('specific_publication_approval_required');
   return adapter.publish({ draft, channel: draft.channel!, approval });
 }
