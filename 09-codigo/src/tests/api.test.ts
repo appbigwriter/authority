@@ -15,6 +15,8 @@ test('API expõe health público, protege escrita e persiste oportunidade autent
   const address = server.address(); assert.ok(address && typeof address !== 'string');
   const base = `http://127.0.0.1:${address.port}`;
   const health = await fetch(`${base}/health`); assert.equal(health.status, 200); assert.equal((await health.json()).service, 'authority-engine');
+  const aboutPage = await fetch(`${base}/about`); assert.equal(aboutPage.status, 200); assert.match(aboutPage.headers.get('content-type') || '', /text\/html/);
+  const aboutHtml = await aboutPage.text(); assert.ok(aboutHtml.includes('02-prd / Readme.md') && aboutHtml.includes('Opportunity Radar'));
   const missingCredential = await fetch(`${base}/api/opportunities`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ niche: 'gear', subniche: 'displays' }) });
   assert.equal(missingCredential.status, 401);
   const created = await fetch(`${base}/api/opportunities`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${tokens.operator}` }, body: JSON.stringify({ niche: 'gear', subniche: 'displays' }) });
