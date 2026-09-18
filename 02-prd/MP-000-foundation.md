@@ -1,7 +1,7 @@
 # MP-000 — Fundação do Projeto: Authority Engine
 
 ## Status
-`FUNDACAO` | em_validacao
+`FUNDACAO` | em_revisao_estrutural
 
 ## Tese de negócio
 Empresas normalmente contratam influencers de sucesso para promover produtos. A FBR pretende construir um portfólio próprio de influencers de autoridade para criar distribuição proprietária dos produtos FBR e de afiliados relevantes.
@@ -19,12 +19,16 @@ O ativo estratégico não é somente o rosto gerado. É a combinação de confia
 
 ## Decisões de Arquitetura
 - Stack futuro: Next.js/TypeScript/Tailwind, Postgres/Supabase, conforme padrão FBR.
-- Fase atual: operação manual por skills encadeadas; sem desenvolvimento.
-- Padrão futuro: monólito modular, orientado a projetos/personas, com trilha de auditoria.
-- Unidades principais: nicho, oportunidade, persona, Character Bible, evidência, claim, pacote editorial e gate.
-- Integrações futuras: pesquisa web, catálogo Amazon/produtos, geração de imagem, armazenamento de assets e canais editoriais — todas por adaptadores internos e contratos explícitos.
-- Publicação: sempre manual ou assistida, com aprovação humana; nenhum blast multi-conta.
-- Suposições a validar: primeiro usuário é a operação interna da FBR; SharpEye/Nadia será o primeiro caso de teste; o motor pode propor personas novas além de adaptar existentes.
+- Fase atual: estruturar o pipeline de geração e aprovação da Persona antes do provisionamento.
+- Padrão futuro: monólito modular orientado a Personas, projetos editoriais e versões, com trilha de auditoria.
+- Unidades principais: nicho, oportunidade, persona, Character Bible, Physical Identity Bible, evidência, claim, pacote editorial, blog derivado, aprovação e Gate.
+- Pipeline formador: Brief Interpreter, Niche & Audience Analyst, Authority Strategist, Persona Architect, Physical Identity Designer, Visual Consistency Designer, Editorial Strategist, Channel Planner, Consistency Reviewer e Approval Packager.
+- Geração: usar o modelo/provider principal configurado no Hermes; registrar provider, modelo, versão, prompt version e generation job.
+- Integrações: Agency Flux por API/eventos assinados; pesquisa web, catálogo Amazon/produtos, geração de imagem, armazenamento de assets e canais editoriais por adaptadores internos.
+- Fonte canônica: Authority Engine mantém Persona e versões; módulos consumidores não leem tabelas internas diretamente.
+- Publicação: sempre manual ou assistida, com aprovação integral de Sergio na primeira fase.
+- Domínio: derivado inicialmente de `<slug>.fbr.news`, versionável e editável; DNS confirmado manual e automaticamente.
+- Suposições a validar: primeiro usuário é a operação interna da FBR; SharpEye/Nadia será o primeiro caso de teste; uma Persona pode sustentar vários blogs.
 
 ## Modelo de decisão
 Uma persona só avança quando a oportunidade do nicho é demonstrada, a diferenciação é clara, a autoridade é plausível, os riscos são aceitáveis e existe um plano de conteúdo sustentável. Beleza visual, potencial de viralização ou comissão alta isoladamente não aprovam uma persona.
@@ -32,11 +36,14 @@ Uma persona só avança quando a oportunidade do nicho é demonstrada, a diferen
 ## Relação com o FBR Agency Flux
 O Authority Engine é o upstream estratégico do FBR Agency Flux:
 
-- **Authority Engine:** pesquisa o nicho e gera opções de criação de oportunidades de autoridade.
-- **Sergio:** compara as opções, escolhe uma direção e decide se vale aprofundar.
-- **FBR Agency Flux:** recebe somente a opção selecionada e autorizada, convertendo-a em projeto com escopo, agentes, canais, ofertas, métricas, cards, evidências e gates.
+- **Authority Engine:** recebe dados-base, executa o pipeline modular, gera Persona completa, Character Bible, Physical Identity Bible, planos editoriais e pacote de aprovação.
+- **Sergio:** revisa e aprova Persona, nome do blog e publicação na Central de Aprovações do Agency Flux.
+- **FBR Agency Flux:** recebe eventos assinados após aprovação, coordena jobs, provisionamento, blockers, readbacks e publicação.
+- **FBR Blogs:** consome a Persona aprovada por API/evento e cria os projetos editoriais derivados.
 
-Uma opção em `draft` ou `blocked` não pode abrir execução comercial. O handoff para o Flux não é automático e só ocorre após seleção humana. Ele deve conter: nicho, oportunidade, persona candidata, público, problema, diferenciação, Character Bible proposto, guardrails, claims, fontes, caminhos de monetização, riscos, critérios de validação e decisão pendente.
+Uma opção ou Persona em `draft`, `generation_blocked`, `rejected` ou `blocked` não pode abrir execução comercial. O handoff para o Flux ocorre somente após a aprovação registrada e deve conter: nicho, oportunidade, Persona versionada, Character Bible, Physical Identity Bible, público, problema, diferenciação, guardrails, claims, fontes, canais planejados, riscos, critérios de validação e decisão aprovada.
+
+A comunicação entre módulos ocorre por APIs oficiais e eventos assinados. Nenhum módulo acessa diretamente as tabelas internas de outro módulo.
 
 ### Critério de passagem para aprofundamento de oportunidade
 A passagem não é aprovação de projeto. Ela só pode ser proposta quando existir uma opção `qualified` e um pacote que responda objetivamente:
