@@ -11,7 +11,11 @@
     "dev": "npm run build && node dist/start.js"
   },
   "devDependencies": {
-    "typescript": "^5.7.2",
-    "@types/node": "^22.10.2"
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
   }
 }

@@ -96,7 +96,7 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
       const url = new URL(req.url ?? '/', 'http://localhost');
       if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/dashboard' || url.pathname === '/about')) { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(await readFile(new URL('../public/dashboard.html', import.meta.url), 'utf8')); }
       if (req.method === 'GET' && url.pathname === '/api/info') return json(res, 200, { service: 'authority-engine', status: 'running', health: '/health', state: '/api/state', version: '0.1.0' });
-      if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, { ok: true, service: 'authority-engine', persistence: 'json-store', externalIntegrations: 'not_configured', publicationMode: 'blocked_without_configured_adapter' });
+      if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, { ok: true, service: 'authority-engine', persistence: store.kind, externalIntegrations: 'not_configured', publicationMode: 'blocked_without_configured_adapter' });
 
       const roles = rolesFor(req.method, url.pathname);
       const principal = authorize(req, res, authConfig, roles);
