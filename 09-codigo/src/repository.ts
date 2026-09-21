@@ -73,6 +73,17 @@ const pickOptionalString = (value: unknown, key: string): string | null => {
   return typeof item === 'string' && item.length > 0 ? item : null;
 };
 
+const pickRequiredString = (value: unknown, key: string): string => {
+  const item = pickOptionalString(value, key);
+  if (!item) throw new Error(`payload_${key}_required`);
+  return item;
+};
+
+const pickNumber = (value: unknown, key: string, fallback: number): number => {
+  const item = readProperty(value, key);
+  return typeof item === 'number' && Number.isFinite(item) ? item : fallback;
+};
+
 const requirePayloadId = (value: unknown): string => {
   if (!isObjectWithId(value)) throw new Error('payload_id_required');
   return value.id;
@@ -153,6 +164,31 @@ export class RelationalAuthorityStore implements PersistenceStore {
     const { projectId, ownerId } = this.context(context);
     const id = requirePayloadId(value);
     const table = collectionTables[collection];
+
+    if (collection === 'events') {
+      await this.client.query(
+        `insert into ${table} (id, project_id, owner_id, type, target_id, payload) values ($1, $2, $3, $4, $5, $6::jsonb)`,
+        [id, projectId, ownerId, pickRequiredString(value, 'type'), pickOptionalString(value, 'targetId'), JSON.stringify(value)],
+      );
+      return value;
+    }
+
+    if (collection === 'outbox_events') {
+      await this.client.query(
+        `insert into ${table} (id, project_id, owner_id, event_type, aggregate_type, aggregate_id, status, attempts, max_attempts, next_retry_at, last_error, dead_lettered_at, payload) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)`,
+        [id, projectId, ownerId, pickRequiredString(value, 'eventType'), pickOptionalString(value, 'aggregateType') ?? 'unknown', pickRequiredString(value, 'aggregateId'), pickStatus(value) ?? 'pending', pickNumber(value, 'attempts', 0), pickNumber(value, 'maxAttempts', 3), pickOptionalString(value, 'nextRetryAt'), pickOptionalString(value, 'lastError'), pickOptionalString(value, 'deadLetteredAt'), JSON.stringify(value)],
+      );
+      return value;
+    }
+
+    if (collection === 'outbox_receipts') {
+      await this.client.query(
+        `insert into ${table} (id, project_id, owner_id, receipt_id, event_id, consumer, response) values ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+        [id, projectId, ownerId, pickRequiredString(value, 'receiptId'), pickRequiredString(value, 'eventId'), pickRequiredString(value, 'consumer'), JSON.stringify(readProperty(value, 'response') ?? null)],
+      );
+      return value;
+    }
+
     await this.client.query(
       `insert into ${table} (id, project_id, owner_id, status, payload) values ($1, $2, $3, $4, $5::jsonb)`,
       [id, projectId, ownerId, pickStatus(value), JSON.stringify(value)],
@@ -160,13 +196,32 @@ export class RelationalAuthorityStore implements PersistenceStore {
     return value;
   }
 
-  async replace<C extends StoreCollection>(collection: C, id: string, value: unknown, context?: Partial<PersistenceContext>): Promise<unknown> {
+  async replace<C extends StoreCollection>(collection: C, id: string, value: unknown, context?: Partial<PersistenceContext>): Promise<StoreData[C][number]> {
     const { projectId, ownerId } = this.context(context);
     const table = collectionTables[collection];
-    const result = await this.client.query<{ id: string }>(
-      `update ${table} set status = $1, payload = $2::jsonb, updated_at = now() where id = $3 and project_id = $4 and owner_id = $5 returning id`,
-      [pickStatus(value), JSON.stringify(value), id, projectId, ownerId],
-    );
+
+    let result;
+    if (collection === 'events') {
+      result = await this.client.query<{ id: string }>(
+        `update ${table} set type = $1, target_id = $2, payload = $3::jsonb where id = $4 and project_id = $5 and owner_id = $6 returning id`,
+        [pickRequiredString(value, 'type'), pickOptionalString(value, 'targetId'), JSON.stringify(value), id, projectId, ownerId],
+      );
+    } else if (collection === 'outbox_events') {
+      result = await this.client.query<{ id: string }>(
+        `update ${table} set event_type = $1, aggregate_type = $2, aggregate_id = $3, status = $4, attempts = $5, max_attempts = $6, next_retry_at = $7, last_error = $8, dead_lettered_at = $9, payload = $10::jsonb, updated_at = now() where id = $11 and project_id = $12 and owner_id = $13 returning id`,
+        [pickRequiredString(value, 'eventType'), pickOptionalString(value, 'aggregateType') ?? 'unknown', pickRequiredString(value, 'aggregateId'), pickStatus(value) ?? 'pending', pickNumber(value, 'attempts', 0), pickNumber(value, 'maxAttempts', 3), pickOptionalString(value, 'nextRetryAt'), pickOptionalString(value, 'lastError'), pickOptionalString(value, 'deadLetteredAt'), JSON.stringify(value), id, projectId, ownerId],
+      );
+    } else if (collection === 'outbox_receipts') {
+      result = await this.client.query<{ id: string }>(
+        `update ${table} set receipt_id = $1, event_id = $2, consumer = $3, response = $4::jsonb where id = $5 and project_id = $6 and owner_id = $7 returning id`,
+        [pickRequiredString(value, 'receiptId'), pickRequiredString(value, 'eventId'), pickRequiredString(value, 'consumer'), JSON.stringify(readProperty(value, 'response') ?? null), id, projectId, ownerId],
+      );
+    } else {
+      result = await this.client.query<{ id: string }>(
+        `update ${table} set status = $1, payload = $2::jsonb, updated_at = now() where id = $3 and project_id = $4 and owner_id = $5 returning id`,
+        [pickStatus(value), JSON.stringify(value), id, projectId, ownerId],
+      );
+    }
     if (result.rows.length === 0) throw new Error('not_found');
     return value;
   }

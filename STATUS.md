@@ -1,7 +1,7 @@
 # STATUS — Authority Engine
 
 ## Estado atual
-`IMPLEMENTACAO_PARCIAL` | Control Tower provisionado | núcleo local verificado | integrações de produto e QA pendentes
+`PLANEJAMENTO_EM_VALIDACAO` | programação bloqueada | PRD aprovado | backlog S0–S10 planejado | 46 Stories/275 subtarefas catalogadas | revisão da ordem de execução pendente
 
 ## Provisionamento Control Tower
 - Projeto: `Authority Engine`
@@ -60,9 +60,10 @@ Nenhuma Sprint está concluída. O núcleo local foi verificado, mas a entrega c
 ## Evidência mais recente
 - Diretório: `09-codigo`
 - Comando: `npm run check`
-- Resultado: build passou; 49 testes passaram; 0 falhas; contrato UI `node dashboard-contract.test.mjs` passou.
-- Smoke HTTP: `/health` 200; criação persistida 201; aprovação sem `true` 422; leitura de estado 200.
-- Limitação: integrações externas não configuradas; persistência é `JsonStore` local.
+- Resultado: build passou; 50 testes passaram; 0 falhas; contrato UI `node dashboard-contract.test.mjs` e `node dashboard-check.mjs` passaram.
+- Alteração verificada: `RelationalAuthorityStore` agora mapeia `events`, `authority_outbox_events` e `outbox_receipts` para suas colunas reais; teste AUTH-003 dedicado cobre o contrato.
+- Smoke HTTP histórico: `/health` 200; criação persistida 201; aprovação sem `true` 422; leitura de estado 200.
+- Limitação: integrações externas não configuradas; persistência remota e RLS ainda não foram executadas/read back neste ambiente.
 
 ## Regra operacional
 Nenhum agente deve publicar, gastar, criar contas ou aplicar migration externa sem contrato, credencial segura, health check, evidência e aprovação específica.

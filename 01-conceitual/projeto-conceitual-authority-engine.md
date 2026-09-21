@@ -1,802 +1,415 @@
-# Projeto Conceitual — Authority Engine
+# Projeto Conceitual — FBR Authority Engine
 
-**Sistema de geração de opções para criação de influencers de autoridade**
+**Sistema de descoberta, criação e operação sistematizada de Personas de Autoridade**
 
 | Campo | Definição |
 |---|---|
-| Projeto | Authority Engine |
+| Projeto | FBR Authority Engine |
 | Organização | FBR |
-| Camada de operação | FBR Agency Flux |
-| Natureza | Motor estratégico/editorial de descoberta e desenvolvimento de oportunidades |
-| Estado | Fundação conceitual em validação |
-| Versão | v01 |
-| Documento | Fonte conceitual consolidada |
-| Código autorizado | Não nesta fase |
-| Publicação automática autorizada | Não |
+| Coordenação operacional | FBR Agency Flux |
+| Estado | proposta conceitual em validação |
+| Versão | v03 — processo sistematizado |
+| Código autorizado nesta fase | não; somente planejamento |
+| Publicação automática | não no MVP |
+| Unidade canônica | Persona + Marca Editorial |
+| Piloto | SharpEye · by Nadia Volkova |
 
 ---
 
-## 1. Definição do projeto
+## 1. Visão
 
-O **Authority Engine** é um sistema interno da FBR para pesquisar mercados, nichos, subnichos e produtos e, a partir dessa pesquisa, gerar **opções qualificadas para a criação de influencers de autoridade**.
+O Authority Engine é o sistema estratégico da FBR para descobrir oportunidades de mercado, criar Personas de Autoridade, desenvolver Marcas Editoriais e estabelecer uma audiência orgânica e nichada ao redor delas.
 
-O sistema não existe para fabricar avatares, personagens bonitos ou perfis genéricos. Ele existe para descobrir oportunidades nas quais uma persona de IA possa construir autoridade temática, formar audiência própria, gerar conteúdo útil e, posteriormente, tornar-se um ativo de distribuição para produtos próprios da FBR e produtos de afiliados relevantes.
+O sistema transforma um processo que poderia depender de decisões dispersas, prompts isolados e execução manual em um pipeline rastreável, versionado e governado por Gates:
 
-A unidade de valor do Authority Engine não é o rosto gerado. É uma **opção de oportunidade de autoridade** suficientemente investigada e desenvolvida para permitir uma decisão de qualidade.
+```text
+briefing
+→ pesquisa de mercado
+→ oportunidade qualificada
+→ seed comparável
+→ seleção humana
+→ Persona de Autoridade
+→ Marca Editorial
+→ sistema de conteúdo
+→ drafts revisados
+→ audiência
+→ métricas
+→ aprendizado
+→ novas oportunidades
+```
 
-Essa opção pode conter:
-
-- nicho e subnicho;
-- problema ou desejo da audiência;
-- sinais de demanda;
-- produtos relacionados;
-- espaço competitivo;
-- arquétipo recomendado;
-- função editorial da persona;
-- modelo de perfil ideal;
-- proposta de diferenciação;
-- identidade e voz candidatas;
-- caminhos de conteúdo;
-- possibilidades de monetização;
-- riscos e limites;
-- evidências;
-- hipóteses;
-- critérios para validação;
-- recomendação de prioridade.
-
-A opção não é automaticamente uma marca aprovada, um projeto aberto, uma operação comercial ou uma autorização de publicação.
+O Authority Engine é responsável pela criação estratégica e editorial da Persona. O FBR Agency Flux mantém o processo criativo e a gestão geral junto aos agentes especializados, coordenando jobs, owners, dependências, handoffs, Gates e acompanhamento.
 
 ---
 
 ## 2. Tese de negócio
 
-Empresas contratam influencers que já possuem audiência e credibilidade para alavancar seus produtos.
+A FBR pretende construir um portfólio próprio de Personas de Autoridade e Marcas Editoriais capazes de formar audiência orgânica, gerar confiança e distribuir produtos próprios e produtos afiliados relevantes.
 
-A FBR pretende construir uma capacidade própria e cumulativa:
+O ativo estratégico não é apenas a imagem da Persona. É a combinação de:
 
-> **desenvolver e operar um portfólio próprio de influencers de autoridade para divulgar produtos próprios e produtos de afiliados adequados a cada audiência.**
-
-No vocabulário interno, esse processo pode ser chamado de “farmar influencers”. Na documentação formal, o conceito é:
-
-> **construir, desenvolver e operar um portfólio de ativos de autoridade e distribuição.**
-
-A estratégia reduz a dependência de contratar alcance de terceiros para cada produto. Em vez de começar do zero a cada lançamento, a FBR pode acumular:
-
-- audiência própria;
-- tráfego recorrente;
-- listas de e-mail;
-- biblioteca de conteúdo;
-- formatos proprietários;
-- relacionamento com comunidades;
-- dados de comportamento;
-- dados de conversão;
-- conhecimento de nichos;
+- audiência orgânica;
+- confiança temática;
+- conteúdo útil;
+- blog e ativos próprios;
+- conhecimento acumulado do nicho;
 - capacidade de recomendação;
-- canais de distribuição próprios.
+- dados de engajamento;
+- dados de conversão;
+- formatos editoriais proprietários;
+- capacidade de operar várias marcas com processo replicável.
 
-O Authority Engine é a camada que melhora a qualidade das escolhas antes que a FBR invista tempo, dinheiro e capacidade operacional no desenvolvimento de uma nova marca.
-
----
-
-## 3. O que o Authority Engine faz e não faz
-
-### 3.1 O que faz
-
-O Engine:
-
-1. pesquisa oportunidades de mercado;
-2. identifica nichos, subnichos, tendências e produtos;
-3. avalia demanda e intenção;
-4. avalia risco de claims e conformidade;
-5. propõe arquétipos e funções de autoridade;
-6. gera seeds de influencers comparáveis;
-7. desenvolve opções de personas e marcas;
-8. define conteúdo e formatos editoriais possíveis;
-9. mapeia produtos próprios e afiliados potencialmente compatíveis;
-10. prepara briefings de decisão;
-11. registra evidências, hipóteses e riscos;
-12. envia apenas opções selecionadas ao FBR Agency Flux;
-13. aprende com métricas e resultados das operações existentes.
-
-### 3.2 O que não faz
-
-O Engine não:
-
-- cria projetos monetizáveis diretamente;
-- decide sozinho quais oportunidades receberão investimento;
-- abre contas em plataformas sem aprovação;
-- publica em massa automaticamente;
-- cria personas descartáveis em volume;
-- fabrica autoridade inexistente;
-- inventa credenciais, experiências ou testemunhos;
-- gera claims sem evidência;
-- escolhe produto apenas pela comissão;
-- transforma uma boa imagem em prova de oportunidade;
-- substitui a decisão de Sergio;
-- substitui o FBR Agency Flux;
-- considera uma opção como validada apenas porque foi gerada por IA.
+A monetização não inicia o raciocínio. Primeiro vem a oportunidade, depois a autoridade, depois a audiência e, somente quando houver encaixe legítimo, a recomendação comercial.
 
 ---
 
-## 4. Princípio de separação entre oportunidade e execução
+## 3. Objetivos do sistema
 
-O projeto deve impedir a passagem automática de uma ideia para uma operação.
-
-A separação é:
-
-```text
-pesquisa
-→ opção de oportunidade
-→ qualificação
-→ comparação
-→ seleção humana
-→ aprofundamento
-→ proposta de projeto
-→ aprovação
-→ FBR Agency Flux
-→ execução
-```
-
-Cada etapa responde a uma pergunta diferente:
-
-| Etapa | Pergunta |
-|---|---|
-| Pesquisa | Existe algum sinal relevante aqui? |
-| Opção | Que oportunidade poderia ser criada? |
-| Qualificação | Essa oportunidade tem qualidade e evidência suficientes? |
-| Comparação | Ela é melhor ou mais promissora que as alternativas? |
-| Seleção | Sergio quer investir atenção nela? |
-| Aprofundamento | Como seria a persona, marca e operação? |
-| Projeto | O investimento é justificável? |
-| Flux | Como executar com ownership, cards, custos e gates? |
-
-A geração de uma opção deve aumentar a clareza. Nunca deve criar pressão artificial para executar.
+1. Sistematizar a descoberta de nichos, subnichos, produtos e contextos correlatos.
+2. Transformar sinais em oportunidades comparáveis e rastreáveis.
+3. Criar Seeds de Influencers por LLM com estrutura, evidência e diferenciação.
+4. Permitir seleção humana consciente antes de desenvolver uma Persona.
+5. Desenvolver integralmente a Persona e sua Marca Editorial.
+6. Criar um sistema de produção editorial confiável e constante.
+7. Manter toda produção em draft até revisão humana no primeiro momento.
+8. Organizar produtos próprios e afiliados sem deixar comissão dominar a recomendação.
+9. Registrar métricas e aprendizados para alimentar novas oportunidades.
+10. Replicar o método para outras marcas depois que o piloto for validado.
 
 ---
 
-## 5. Os quatro módulos centrais
+## 4. Não objetivos
 
-Os quatro módulos são obrigatórios e permanentes na concepção do sistema. A implementação pode ser faseada, mas nenhum módulo deve ser tratado como acessório.
+- Não é uma fábrica de avatares em lote.
+- Não é um gerador de contas para evasão de banimento.
+- Não é antidetect ou fingerprint spoofing.
+- Não publica automaticamente no MVP.
+- Não inventa credenciais, clientes, experiências, depoimentos ou resultados.
+- Não transforma seguidores em prova automática de vendas.
+- Não força ClickBank ou qualquer parceiro quando não houver encaixe.
+- Não inicia programação antes da aprovação dos PRDs.
+- Não executa APIs externas, cria contas, gasta verba ou aplica migrations sem Gate específico.
 
-```text
-Opportunity Radar
-        ↓
-Influencer Seeds Creator
-        ↓
-Influencer Farmer
-        ↓
-Post Machine
-        ↓
-feedback de audiência, conteúdo e mercado
-        └──────────────→ Opportunity Radar
-```
+---
 
-O fluxo não é uma linha de produção cega. É um ciclo de aprendizado.
+## 5. Arquitetura modular
 
-### 5.1 Opportunity Radar
+O produto possui três módulos, sendo o terceiro composto por duas fases sequenciais:
 
-#### Propósito
+### Módulo 1 — Opportunity Radar
 
-Pesquisar continuamente tendências, nichos, subnichos, categorias e produtos para identificar oportunidades de criação de influencers de autoridade.
+Objetivo canônico:
 
-#### Fontes previstas
+> Buscar nichos, subnichos e produtos em alta, trazendo contextos e assuntos correlatos que possam indicar bons caminhos de monetização de produtos próprios ou afiliados.
 
-- API da Amazon;
-- APIs autorizadas de outros marketplaces;
-- dados de categorias e produtos;
-- tendências de busca e conteúdo;
-- sinais de intenção de compra;
-- concorrentes e referências editoriais;
-- dados históricos internos;
-- feedback dos projetos operados;
-- desempenho de produtos próprios e afiliados.
+O Radar registra fontes, contexto, período, limitações, produtos, problemas, concorrência, intenção, riscos e score. “Em alta” nunca pode ser declarado sem evidência suficiente.
 
-Nenhuma fonte deve ser tratada como verdade absoluta. O Radar deve registrar origem, data de acesso, cobertura, limitações e grau de confiança.
+### Módulo 2 — Influencer Seeds Creator
 
-#### Perguntas que deve responder
+Transforma uma oportunidade qualificada em alternativas comparáveis de arquétipo, função, posicionamento, voz, formatos e modelo de perfil.
 
-- O nicho existe de forma identificável?
-- Há problema ou desejo recorrente?
-- Existe audiência acessível?
-- Há intenção informacional, comparativa ou transacional?
-- Existem produtos relevantes?
-- Os produtos têm função demonstrável?
-- O nicho depende de claims sensíveis?
-- Há espaço para uma nova voz?
-- O tema permite produção útil por longo prazo?
-- Oportunidades próprias e de afiliados podem ser encaixadas sem distorção?
+A geração será feita por OpenAI API, com prompts, schema, versão e avaliação registrados. A saída nunca seleciona uma Seed sozinha.
 
-#### Saída
+### Módulo 3 — Profile Building
 
-Uma oportunidade qualificada contendo:
+Módulo único com duas fases:
 
-- nicho;
-- subnicho;
-- categoria;
-- problema;
-- público;
-- evidências de demanda;
-- produtos relacionados;
-- concorrência;
-- saturação;
-- potencial editorial;
-- risco regulatório;
-- risco de plataforma;
-- nota de atratividade risco-ajustada;
-- hipóteses;
-- recomendação: investigar, comparar ou descartar.
+#### Fase Farmer
 
-#### Limites
+Desenvolve integralmente a Persona de Autoridade e a Marca Editorial:
 
-O Opportunity Radar não pode escolher automaticamente uma oportunidade para execução, tratar comissão como prova de qualidade, inventar tendências ou abrir um projeto sem seleção humana.
-
-### 5.2 Influencer Seeds Creator
-
-#### Propósito
-
-Traduzir uma oportunidade qualificada em uma ou mais possibilidades de persona de autoridade.
-
-O módulo não deve perguntar apenas “que rosto combina com este nicho?”. A pergunta correta é:
-
-> **Que tipo de autoridade seria naturalmente procurada por essa audiência para resolver esse problema?**
-
-#### Deve definir
-
+- identidade narrativa;
+- caráter;
 - arquétipo;
-- função da persona;
-- papel editorial;
-- problema que ela ajuda a resolver;
-- público primário;
-- nível de autoridade;
-- fonte de autoridade;
-- ponto de vista;
-- método de curadoria/análise;
-- formato de relacionamento;
-- canais adequados;
-- nome provisório;
-- aparência candidata;
-- voz candidata;
-- diferenciação;
-- limites de representação;
-- riscos de parecer clone;
-- critérios de rejeição.
-
-#### Tipos possíveis de função
-
-- curadora;
-- analista;
-- especialista de produto;
-- educadora;
-- anfitriã de comunidade;
-- crítica;
-- comparadora;
-- estrategista;
-- organizadora;
-- guia de decisões;
-- observadora de tendências.
-
-A função deve ser compatível com a autoridade que pode ser exercida honestamente. Uma persona de IA pode analisar pesquisas, comparar produtos, organizar conhecimento e explicar decisões. Não pode fingir ter um corpo, uma história ou uma experiência que não possui.
-
-#### Saída
-
-Uma ou mais **Influencer Seeds** comparáveis, cada uma contendo:
-
-- conceito;
-- racional;
-- oportunidade associada;
-- público;
-- promessa editorial;
-- arquétipo;
-- função;
-- identidade provisória;
-- diferenciação;
-- formatos;
-- possibilidades de monetização;
-- riscos;
-- evidências;
-- score;
-- condições para desenvolvimento.
-
-A seed não é ainda uma persona aprovada nem um projeto.
-
-### 5.3 Influencer Farmer
-
-#### Propósito
-
-Desenvolver uma seed selecionada em uma opção completa de influencer de autoridade, com identidade, universo editorial e hipótese operacional.
-
-O “farming” é construção progressiva de um ativo, não geração de perfis em lote.
-
-#### Deve desenvolver
-
-##### Identidade
-
-- nome;
-- marca;
-- biografia;
+- voz;
+- identidade visual;
+- Character Kit;
 - posicionamento;
-- arquétipo;
-- valores;
-- personalidade;
-- ponto de vista;
-- diferenciação;
-- relação com outras marcas da rede.
-
-##### Autoridade
-
-- temas que domina por curadoria;
-- fontes que consulta;
-- método de análise;
-- escopo de competência;
-- temas que não pode abordar;
-- situações que exigem especialista humano;
-- distinção entre fato, análise e opinião.
-
-##### Aparência
-
-- aparência fotorrealista;
-- consistência facial;
-- idade aparente;
-- roupas;
-- cenários;
-- iluminação;
-- paleta;
-- elementos recorrentes;
-- regras de continuidade;
-- restrições contra sexualização;
-- disclosure visível de IA.
-
-##### Conteúdo
-
+- público;
+- promessa;
+- temas;
 - pilares;
-- quadros;
-- séries;
-- formatos;
-- tom;
-- vocabulário;
-- ganchos;
-- CTAs;
-- artigos;
-- vídeos;
-- posts;
-- e-mails;
-- mecanismos de participação da audiência.
+- sistema editorial;
+- guardrails;
+- matriz de claims;
+- disclosure;
+- monetização;
+- blog;
+- critérios de revisão e produção.
 
-##### Monetização potencial
+#### Fase Post Machine
 
-- produtos próprios adequados;
-- produtos afiliados adequados;
-- lead magnets;
-- publicidade relevante;
-- possibilidades de lançamento;
-- hipóteses de conversão;
-- riscos de conflito editorial.
+Recebe uma Persona aprovada para produção e:
 
-##### Conformidade
+- recebe pauta;
+- valida contexto;
+- produz draft;
+- confere voz;
+- confere fonte;
+- valida claims;
+- aplica disclosure;
+- adapta o conteúdo;
+- envia para revisão de Sergio;
+- registra métricas e feedback.
 
-- claims permitidos;
-- claims que exigem suavização;
-- claims proibidos;
-- fontes;
-- disclosures;
-- regras de plataforma;
-- regras Amazon;
-- “not medical advice”, quando aplicável.
-
-#### Saída
-
-- perfil desenvolvido;
-- Character Bible;
-- proposta de identidade;
-- plano editorial;
-- matriz de evidências e claims;
-- briefing da opção de oportunidade;
-- exemplos de conteúdo;
-- riscos;
-- critérios de validação;
-- recomendação de passagem ou bloqueio.
-
-### 5.4 Post Machine
-
-#### Propósito
-
-Transformar perfis desenvolvidos e planos aprovados em produção editorial recorrente, organizada, versionada e mensurável.
-
-#### Deve fazer
-
-- receber briefings e pautas;
-- interpretar a voz da persona;
-- produzir rascunhos;
-- criar variações por canal;
-- gerar roteiros, legendas, títulos e CTAs;
-- inserir fontes e disclosures;
-- encaixar produtos com relevância;
-- organizar calendário;
-- controlar versões;
-- enviar para revisão;
-- preparar publicação;
-- agendar quando permitido;
-- registrar publicação;
-- coletar métricas;
-- alimentar o ciclo de aprendizado.
-
-#### Limite de automação
-
-O Post Machine pode automatizar preparação, adaptação, organização, agendamento assistido e análise. Não deve operar publicação em massa multi-conta sem aprovação humana.
-
-Toda publicação pública, resposta externa, gasto, mudança irreversível ou ação comercial relevante segue o gate do FBR Agency Flux.
+No MVP, a Post Machine não publica. Ela prepara drafts para aprovação.
 
 ---
 
-## 6. Ciclo de criação de valor
+## 6. Pipeline sistematizado
 
-```text
-1. Pesquisar nichos e produtos
-2. Detectar oportunidades
-3. Gerar várias seeds de influencers
-4. Qualificar e comparar as seeds
-5. Selecionar uma oportunidade
-6. Desenvolver a persona
-7. Criar universo editorial
-8. Construir audiência e confiança
-9. Identificar encaixes comerciais
-10. Divulgar produtos próprios e afiliados
-11. Medir atenção, confiança e conversão
-12. Reinvestir nas melhores oportunidades
-13. Retroalimentar o Radar
-```
+### Fase 0 — Configuração da operação
 
-A monetização é uma consequência do encaixe entre autoridade, problema, conteúdo e solução. O produto não deve ser colado artificialmente no final do processo.
+- cadastrar tenant;
+- cadastrar parceiros e programas;
+- cadastrar marcas e Personas;
+- configurar fontes;
+- configurar guardrails;
+- configurar papéis e owners;
+- registrar modelo OpenAI e limites;
+- configurar blog e domínio quando aplicável.
+
+### Fase 1 — Intake de oportunidade
+
+Entrada mínima:
+
+- mercado;
+- país/idioma;
+- nicho ou pergunta inicial;
+- público;
+- objetivo de negócio;
+- produtos próprios relacionados;
+- parceiros desejados;
+- restrições;
+- prazo de pesquisa;
+- owner.
+
+Saída: Research Brief versionado.
+
+### Fase 2 — Pesquisa do Radar
+
+- consultar fontes autorizadas;
+- registrar resultados brutos;
+- normalizar produtos;
+- identificar tendências e assuntos correlatos;
+- separar fato, hipótese, risco e bloqueio;
+- registrar data, fonte, período e limitação.
+
+Saída: Research Dataset + Evidence Ledger.
+
+### Fase 3 — Qualificação da oportunidade
+
+- avaliar demanda;
+- avaliar intenção;
+- avaliar espaço editorial;
+- avaliar produto próprio;
+- avaliar afiliados;
+- avaliar autoridade possível;
+- avaliar risco de plataforma e claims;
+- gerar score explicável;
+- produzir Opportunity Dossier.
+
+Saída: `candidate`, `qualified`, `blocked` ou `archived`.
+
+### Fase 4 — Criação de Seeds
+
+- enviar Opportunity Dossier ao LLM;
+- gerar arquétipos e funções;
+- criar alternativas de Persona;
+- comparar com portfólio existente;
+- verificar clonagem;
+- pontuar adequação;
+- gerar argumentos contra;
+- manter decisão pendente.
+
+Saída: Seed Comparison Pack.
+
+### Fase 5 — Seleção humana
+
+Sergio seleciona uma Seed ou rejeita todas.
+
+A decisão registra:
+
+- ator;
+- data;
+- Seed e versão;
+- escopo;
+- justificativa;
+- riscos aceitos;
+- próximo Gate;
+- owner.
+
+### Fase 6 — Profile Building / Farmer
+
+- gerar Persona;
+- criar Character Kit;
+- criar Marca Editorial;
+- definir blog;
+- definir promessa;
+- definir temas e pilares;
+- criar matriz de claims;
+- criar disclosure;
+- criar identidade visual;
+- criar prompts consistentes;
+- definir produtos e limites;
+- criar plano editorial;
+- montar Approval Pack.
+
+Saída: Persona + Marca Editorial pronta para revisão.
+
+### Fase 7 — Aprovação da Persona
+
+Sergio aprova, solicita revisão ou rejeita.
+
+Sem aprovação, a Persona não entra na Post Machine.
+
+### Fase 8 — Profile Building / Post Machine
+
+- selecionar pauta;
+- criar briefing de conteúdo;
+- gerar draft via OpenAI;
+- validar voz;
+- validar fontes;
+- validar claims;
+- validar produto;
+- aplicar disclosure;
+- adaptar formato;
+- submeter para revisão.
+
+Saída: Draft pronto para aprovação.
+
+### Fase 9 — Revisão humana
+
+No primeiro momento, Sergio revisa todos os drafts.
+
+A revisão pode resultar em:
+
+- aprovado;
+- revisão solicitada;
+- bloqueado;
+- rejeitado;
+- arquivado.
+
+### Fase 10 — Publicação futura
+
+Fora do MVP. Somente será habilitada após critérios de estabilidade, compliance, qualidade, adapter oficial e Gate explícito.
+
+### Fase 11 — Métricas e aprendizado
+
+Registrar:
+
+- seguidores;
+- visualizações;
+- audiência recorrente;
+- engajamento;
+- salvamentos;
+- compartilhamentos;
+- tráfego para o blog;
+- cliques em produtos;
+- leads quando habilitados;
+- conversões;
+- receita;
+- qualidade editorial;
+- esforço de produção.
+
+O primeiro indicador será seguidores, mas nenhum resultado comercial deve ser inferido somente por essa métrica.
 
 ---
 
-## 7. Relação com o FBR Agency Flux
+## 7. Piloto SharpEye
 
-O Authority Engine é o **upstream estratégico**. O FBR Agency Flux é a camada de gestão, coordenação e execução.
+### Marca
 
-### Authority Engine
+- Assinatura: `SharpEye · by Nadia Volkova`.
+- Domínio previsto: `sharpeye.fbr.news`.
+- Tagline: `The eye that makes small brands look big.`
+- Tese: `O espaço é a primeira coisa que uma marca diz em voz alta.`
+- Arquétipo editorial: Consultora-visionária.
+- Modo de atuação: Pragmatic Creator.
 
-Entrega:
+### Público
 
-- oportunidades;
-- seeds;
-- personas candidatas;
-- hipóteses;
-- evidências;
-- riscos;
-- briefings de decisão;
-- critérios de validação.
+- empresas;
+- empresários;
+- expositores;
+- lojistas;
+- organizadores de eventos;
+- pequenas e médias marcas;
+- equipes de marketing.
 
-### FBR Agency Flux
+### Categoria inicial
 
-Recebe somente a opção selecionada e autorizada e coordena:
+`Store Signs & Displays`.
 
-- abertura do projeto;
-- definição de escopo;
-- ownership;
-- agentes;
-- cards;
-- recursos;
-- cronograma;
-- desenvolvimento;
-- conteúdo;
-- tráfego;
-- ofertas;
-- QA;
-- métricas;
-- gates;
-- operação.
+### Produtos
 
-### Sergio
-
-- escolhe entre opções;
-- aprova aprofundamentos relevantes;
-- aprova abertura de projetos;
-- aprova ações públicas, financeiras ou irreversíveis;
-- decide conflitos de prioridade;
-- aprova exceções.
-
-Uma resposta do Engine nunca equivale ao “sim” de Sergio.
-
----
-
-## 8. Estados conceituais
-
-### Estado da oportunidade
-
-```text
-radar_candidate
-→ opportunity_under_research
-→ opportunity_qualified
-→ opportunity_compared
-→ opportunity_selected
-→ opportunity_rejected
-→ opportunity_archived
-```
-
-### Estado da seed
-
-```text
-seed_proposed
-→ seed_review
-→ seed_selected
-→ seed_blocked
-→ seed_archived
-```
-
-### Estado da persona
-
-```text
-profile_in_development
-→ profile_review
-→ profile_approved_for_proposal
-→ profile_rejected
-```
-
-### Estado da passagem para o Flux
-
-```text
-handoff_draft
-→ handoff_review
-→ awaiting_sergio_decision
-→ selected_for_flux
-→ project_proposed
-→ project_approved
-→ execution_planned
-```
-
-### Estado de conteúdo
-
-```text
-content_planned
-→ content_in_production
-→ content_review
-→ awaiting_human_approval
-→ scheduled_or_published
-→ metrics_recorded
-```
-
-Nenhuma transição pode ocorrer apenas porque um agente respondeu. A transição exige artefato, responsável, status, evidência e, quando aplicável, aprovação.
-
----
-
-## 9. Critérios de qualidade das opções
-
-Uma opção de oportunidade só é considerada qualificada quando demonstrar:
-
-### Mercado
-- nicho identificável;
-- problema recorrente;
-- sinais de demanda;
-- audiência acessível;
-- intenção clara;
-- fontes registradas.
-
-### Autoridade
-- função legítima da persona;
-- método de curadoria ou análise;
-- limites de competência;
-- diferenciação clara;
-- ausência de credenciais falsas;
-- ausência de experiência corporal inventada.
-
-### Conteúdo
-- pelo menos três pilares;
-- pelo menos dois formatos recorrentes;
-- pelo menos dez pautas iniciais;
-- potencial de produção por 90 dias;
-- mecanismo de participação da audiência;
-- possibilidade de captura de e-mail.
+- rollups;
+- banners;
+- backdrops;
+- sinalização;
+- displays;
+- stands;
+- backlights;
+- acessórios e materiais correlatos.
 
 ### Monetização
-- produto ou oferta relevante;
-- possibilidade de produto próprio ou afiliado;
-- alternativa gratuita ou de menor custo;
-- conteúdo que entrega valor antes da recomendação;
-- ausência de dependência de claims proibidos;
-- comissão não é o único argumento de seleção.
 
-### Conformidade
-- identificação de IA;
-- disclosure comercial;
-- fontes;
-- claim calibrado;
-- política visual;
-- direitos de imagem e conteúdo;
-- riscos de plataforma documentados.
+- principal: produtos próprios FBRSigns;
+- secundária: Amazon Associates e parceiros relevantes;
+- ClickBank: não forçar, pois não há encaixe natural confirmado.
 
-### Operação
-- complexidade compatível com a capacidade da FBR;
-- recursos estimados;
-- owner possível;
-- métricas definidas;
-- dependências conhecidas;
-- critérios de pausa e encerramento.
+### Formato central
+
+`The Teardown`: diagnóstico editorial de booths, vitrines e espaços, sempre para ajudar e nunca humilhar.
+
+### Guardrail de credencial
+
+Nadia pode ter “olho de arquiteta”, mas não deve ser apresentada como arquiteta licenciada prestando serviço, nem inventar projetos, clientes ou instalações reais.
 
 ---
 
-## 10. Guardrails permanentes
+## 8. Gates
 
-1. Persona de IA sempre identificada como IA.
-2. Nunca simular pessoa humana real sem disclosure.
-3. Nunca inventar credenciais.
-4. Nunca inventar testemunho em primeira pessoa.
-5. Nunca escrever sobre corpo, dor ou transformação como experiência da persona.
-6. Nunca usar cura, garantia ou prazo fabricado.
-7. Claims devem ser calibrados ao nível da evidência.
-8. Produtos devem ser relevantes para o problema tratado.
-9. Comissão não supera relevância editorial.
-10. Saúde sensível exige cuidado redobrado e encaminhamento profissional.
-11. Fertilidade, gravidez e saúde mental não devem ser tratados como simples oportunidades de afiliado.
-12. Beleza e presença não devem depender de sexualização.
-13. Não criar clones de SharpEye, TheThirties, After Forty ou Game Style.
-14. Não publicar automaticamente em massa em múltiplas contas.
-15. Não gastar, publicar ou alterar sistemas externos sem gate.
-16. Não chamar hipótese de fato.
-17. Não chamar opção qualificada de projeto aprovado.
-18. Não chamar implementação futura de sistema existente.
+- **G0 — Escopo:** nicho, público, problema e finalidade definidos.
+- **G1 — Oportunidade:** evidência de demanda/intenção e caminho de monetização.
+- **G2 — Diferenciação:** Seed não é clone do portfólio.
+- **G3 — Autoridade:** Persona pode falar honestamente sobre o tema.
+- **G4 — Viabilidade editorial:** conteúdo sustentável.
+- **G5 — Monetização:** produto pertinente e recomendação íntegra.
+- **G6 — Identidade:** Persona, IA, visual e disclosure coerentes.
+- **G7 — Seleção:** Sergio seleciona Seed/Persona.
+- **G8 — Produção:** Persona aprovada para Post Machine.
+- **G9 — Draft:** conteúdo aprovado por Sergio.
+- **G10 — Publicação futura:** canal e adapter aprovados; fora do MVP.
 
 ---
 
-## 11. Referências de saída
+## 9. Princípios de governança
 
-As marcas existentes servem como referências conceituais do tipo de resultado que o Engine pode gerar:
-
-| Referência | Campo | Função de autoridade | Formato de referência |
-|---|---|---|---|
-| SharpEye / Nadia | sinalização e presença visual para negócios | analista/curadora estratégica | Teardown |
-| TheThirties | vida, decisões e estilo aos 30 | curadora editorial | recomendações contextualizadas |
-| After Forty | presença, bem-estar e escolhas maduras | curadora de autoridade | diagnóstico e orientação |
-| Game Style | setups e estética gamer | analista de setups | Battlestation Breakdown |
-
-As referências não são moldes para clonagem. O Engine deve preservar a lógica de criar autoridade por nicho, mas gerar novas combinações de público, problema, função, voz, aparência e formato.
-
----
-
-## 12. Métricas do Authority Engine
-
-As métricas iniciais medem a qualidade das decisões, não apenas o volume de personas geradas.
-
-### Qualidade de descoberta
-
-- número de oportunidades pesquisadas;
-- qualidade das fontes;
-- taxa de oportunidades descartadas;
-- concordância entre score e avaliação humana;
-- precisão das oportunidades que avançam;
-- tempo até decisão.
-
-### Qualidade de seed
-
-- clareza do arquétipo;
-- clareza da função;
-- diferenciação;
-- adequação ao público;
-- coerência com o nicho;
-- risco de clone;
-- qualidade do racional.
-
-### Qualidade de desenvolvimento
-
-- completude do Character Bible;
-- consistência de voz;
-- consistência visual;
-- cobertura dos guardrails;
-- quantidade e qualidade de pautas;
-- qualidade das fontes;
-- capacidade de produção contínua.
-
-### Qualidade de operação
-
-- saves;
-- shares;
-- CTR;
-- inscrições de e-mail;
-- retorno à série;
-- qualidade dos comentários;
-- conversão por recomendação;
-- receita por audiência;
-- retenção;
-- custo por conteúdo;
-- tempo humano por publicação.
-
-Número bruto de seguidores não é critério suficiente de sucesso.
+- Fato, hipótese, recomendação, risco, bloqueio e decisão são estados distintos.
+- Nenhuma integração real é declarada por causa de fake, fixture ou adapter configurável.
+- LLM gera opções; não toma decisões estratégicas sozinho.
+- O Flux coordena; o Authority Engine é dono da Persona e da estratégia de autoridade.
+- Estado operacional é relacional e multi-tenant.
+- Todos os artefatos têm versão, autor, data e origem.
+- Todo evento possui identidade, correlação e idempotência.
+- Nenhum segredo aparece em código, logs ou frontend.
+- Saúde e suplementos ficam bloqueados até política de claims aprovada.
+- E-mail fica para versão posterior; blog entra no MVP.
 
 ---
 
-## 13. Fases de evolução
+## 10. Critério para iniciar execução
 
-### Fase 0 — Fundação conceitual
+A programação só começa após:
 
-- validar este documento;
-- validar MP-000;
-- validar gates;
-- validar template de opção;
-- não desenvolver software.
-
-### Fase 1 — Método manual
-
-- executar o fluxo com pesquisa e skills;
-- gerar opções para um nicho-piloto;
-- selecionar uma oportunidade;
-- desenvolver SharpEye/Nadia como caso de aprendizagem;
-- registrar evidências e decisões.
-
-### Fase 2 — Padronização
-
-- comparar opções e resultados;
-- corrigir prompts;
-- definir score;
-- criar templates reutilizáveis;
-- documentar handoffs;
-- identificar tarefas repetitivas.
-
-### Fase 3 — Especificação técnica
-
-- transformar o método comprovado em requisitos;
-- definir schema;
-- definir adapters;
-- definir permissões;
-- definir filas e estados;
-- definir observabilidade;
-- definir integrações reais.
-
-### Fase 4 — Aplicação
-
-- construir o app em Next.js/TypeScript;
-- integrar Postgres/Supabase;
-- implementar os quatro módulos;
-- preservar gates;
-- validar com dados reais;
-- separar mocks de integrações produtivas.
-
-### Fase 5 — Portfólio
-
-- criar novas oportunidades apenas com capacidade real;
-- desincronizar marcas;
-- evitar assinatura de rede;
-- comparar resultados por marca;
-- reinvestir nas melhores;
-- arquivar as que não demonstram tração ou viabilidade.
-
----
-
-## 14. Critério de sucesso conceitual
-
-O conceito estará validado quando a FBR conseguir demonstrar, com evidência, que o Authority Engine:
-
-1. encontra oportunidades que não seriam escolhidas apenas por intuição;
-2. gera opções de influencers claramente diferentes entre si;
-3. explica por que cada persona é adequada ao nicho;
-4. identifica riscos antes do investimento;
-5. produz briefings que permitem decisão sem reconstruir o contexto;
-6. reduz decisões impulsivas;
-7. melhora a qualidade da seleção de marcas;
-8. entrega opções que podem ser encaminhadas ao Flux;
-9. permite que o Flux opere a opção selecionada com clareza;
-10. cria aprendizado de volta para o Radar.
-
-O sucesso não é “gerar muitas influencers”. É gerar **poucas opções excelentes**, selecionar as melhores e construir ativos próprios que acumulem audiência, confiança e distribuição.
-
----
-
-## 15. Decisões pendentes
-
-1. Definir o nicho exato do primeiro exercício do Opportunity Radar.
-2. Definir a escala formal de pontuação das oportunidades.
-3. Definir a quantidade de opções geradas por rodada.
-4. Definir o número máximo de opções que podem avançar para desenvolvimento.
-5. Definir o formato final de comparação para Sergio.
-6. Definir o conjunto inicial de marketplaces além da Amazon.
-7. Definir quais APIs estão contratadas e quais exigem investigação.
-8. Definir o modelo de aprovação da passagem para o FBR Agency Flux.
-9. Definir métricas mínimas para manter ou encerrar uma marca.
-10. Definir a fronteira entre persona, marca e projeto.
-
-Enquanto essas decisões não forem resolvidas, o sistema permanece em fundação e operação manual.
-
----
-
-## 16. Declaração final do conceito
-
-> **Authority Engine é o motor estratégico da FBR para pesquisar oportunidades e gerar opções de influencers de autoridade com máxima qualidade. As opções selecionadas podem ser desenvolvidas em ativos próprios de audiência e distribuição. O FBR Agency Flux só transforma uma opção escolhida e aprovada em projeto, coordenando sua construção, operação e monetização com clareza, evidência e gates humanos.**
+- aprovação deste Projeto Conceitual;
+- reconciliação do MP-000;
+- aprovação do PRD do Opportunity Radar;
+- aprovação do PRD do Influencer Seeds Creator;
+- aprovação do PRD do Profile Building;
+- fechamento do briefing Sharpeye/Nadia;
+- definição dos critérios do piloto;
+- definição das fontes e limites do Radar;
+- confirmação do orçamento OpenAI;
+- aprovação explícita de Sergio para sair do planejamento.

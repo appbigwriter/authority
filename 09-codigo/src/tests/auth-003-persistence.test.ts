@@ -114,3 +114,18 @@ test('adapter relacional grava atrás da interface sem usar JsonStore fake', asy
     'update sem returning precisa falhar fechado',
   );
 });
+
+test('adapter relacional mapeia events e outbox para o schema especializado, sem coluna status inválida', async () => {
+  const client = new RecordingSqlClient();
+  const store = new RelationalAuthorityStore(client, { projectId: 'project-a', ownerId: 'owner-a' });
+
+  await store.append('events', { id: 'event-1', type: 'persona.pending_approval', targetId: 'persona-1', payload: { safe: true } } as any);
+  await store.append('outbox_events', { id: 'outbox-1', eventId: 'outbox-1', eventType: 'persona.pending_approval', aggregateType: 'persona', aggregateId: 'persona-1', payload: { safe: true }, status: 'pending', attempts: 0, maxAttempts: 3, createdAt: '2026-09-21T00:00:00.000Z' } as any);
+  await store.append('outbox_receipts', { id: 'receipt-1', receiptId: 'receipt-1', eventId: 'outbox-1', consumer: 'agency-flux', response: { accepted: true }, createdAt: '2026-09-21T00:00:00.000Z' } as any);
+
+  assert.match(client.calls[0]?.sql ?? '', /insert into custom_authorityengine\.events .*type, target_id, payload/);
+  assert.match(client.calls[1]?.sql ?? '', /insert into custom_authorityengine\.authority_outbox_events .*event_type, aggregate_type, aggregate_id/);
+  assert.match(client.calls[2]?.sql ?? '', /insert into custom_authorityengine\.outbox_receipts .*receipt_id, event_id, consumer, response/);
+  assert.doesNotMatch(client.calls[0]?.sql ?? '', /status/);
+  assert.doesNotMatch(client.calls[2]?.sql ?? '', /status/);
+});
