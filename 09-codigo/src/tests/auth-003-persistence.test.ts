@@ -11,7 +11,10 @@ import {
 import { operationalCollections } from '../persistence/types.js';
 
 const root = resolve(process.cwd(), '..');
-const sqlPath = resolve(root, '04-database', '001-custom-authorityengine-operational.sql');
+const sqlPaths = [
+  resolve(root, '04-database', '001-custom-authorityengine-operational.sql'),
+  resolve(root, '04-database', '004-persona-persistence.sql'),
+];
 
 class RecordingSqlClient implements SqlClient {
   calls: { sql: string; params: readonly unknown[] }[] = [];
@@ -25,12 +28,15 @@ class RecordingSqlClient implements SqlClient {
 }
 
 test('AUTH-003 SQL cobre todas as coleções operacionais com schema qualificado, RLS e índices', async () => {
-  const sql = await readFile(sqlPath, 'utf8');
+  const sql = (await Promise.all(sqlPaths.map((sqlPath) => readFile(sqlPath, 'utf8')))).join('\n');
 
   assert.match(sql, /create schema if not exists custom_authorityengine;/);
   assert.doesNotMatch(sql, /create table if not exists (?!custom_authorityengine\.)/i);
 
   const expectedTables = new Map<StoreCollection, string>([
+    ['personas', 'personas'],
+    ['persona_versions', 'persona_versions'],
+    ['persona_version_transitions', 'persona_version_transitions'],
     ['opportunities', 'opportunities'],
     ['seeds', 'influencer_seeds'],
     ['profiles', 'profiles'],

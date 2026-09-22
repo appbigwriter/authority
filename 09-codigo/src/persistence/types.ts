@@ -68,6 +68,9 @@ export interface StoreData {
 export type StoreCollection = keyof StoreData;
 
 export const operationalCollections = [
+  'personas',
+  'persona_versions',
+  'persona_version_transitions',
   'opportunities',
   'seeds',
   'profiles',
