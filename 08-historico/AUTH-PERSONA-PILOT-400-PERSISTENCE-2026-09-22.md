@@ -53,10 +53,28 @@ A API converte a exceção não classificada em HTTP 400, ocultando a causa no f
 5. Repetir `/api/state`, depois `POST /api/opportunities`.
 6. Só então configurar/usar a chave OpenAI para pesquisa profunda.
 
-## Não executado
+## Correções implementadas localmente
 
-- Nenhum SQL remoto;
-- nenhuma migration remota;
-- nenhuma alteração de secret;
-- nenhuma criação de Persona/opportunity real;
-- nenhuma chamada OpenAI real confirmada.
+- `GET /api/state` agora retorna `503 persistence_unavailable` quando a leitura relacional falha, registrando a mensagem sanitizada no log.
+- `POST /api/opportunities` classifica falhas de banco/schema/conexão como `503`, não como `400` de formulário.
+- `GET /api/readiness` agora executa `store.read()` antes de declarar readiness.
+- Dashboard não substitui falha live por fixture fake; exibe o erro relacional e mantém `DEMO / FAKE` fora do estado de erro.
+- Formulário de oportunidade mostra `detail/error` retornado pelo backend.
+
+## Verificação local
+
+```text
+npm run check
+build: PASS
+65 tests: PASS
+0 failed
+
+git diff --check: PASS
+```
+
+## Pendente para concluir
+
+- Deploy do Authority com essas alterações.
+- Readback de `/api/readiness` autenticado.
+- Readback SQL do schema/tabelas/permissões no banco remoto.
+- Aplicar migration somente se o readback confirmar ausência, com backup/rollback.

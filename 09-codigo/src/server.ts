@@ -96,6 +96,16 @@ function errorStatus(message: string): number {
   return 400;
 }
 
+function isPersistenceFailure(message: string): boolean {
+  return /relation .* does not exist|schema .* does not exist|permission denied|connection|database|postgres|current_project_id|current_owner_id|persistence|could not connect/i.test(message);
+}
+
+function persistenceErrorResponse(res: ServerResponse, error: unknown) {
+  const message = error instanceof Error ? error.message : 'persistence_unavailable';
+  console.error(`[authority-persistence] ${message}`);
+  return json(res, 503, { error: 'persistence_unavailable', detail: message.slice(0, 300) });
+}
+
 export function createAuthorityServer(store: PersistenceStore, options: AuthorityServerOptions = {}) {
   const authConfig = options.auth ?? authConfigFromEnv();
   const publishingAdapter = options.publishingAdapter ?? new UnconfiguredPublishingAdapter();
@@ -111,7 +121,10 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
       if (roles && !principal) return;
       const actor = principal!;
 
-      if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, await store.read());
+      if (req.method === 'GET' && url.pathname === '/api/state') {
+        try { return json(res, 200, await store.read()); }
+        catch (error: unknown) { return persistenceErrorResponse(res, error); }
+      }
 
       // S2 registries: HTTP is the only boundary allowed to choose tenant context.
       if (req.method === 'GET' && (url.pathname === '/api/partners' || url.pathname === '/api/registries/partners')) return json(res, 200, visibleTo(actor, await find(store, 'partners')));
@@ -343,7 +356,15 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
       }
 
       // S1 - Opportunity Radar
-      if (req.method === 'POST' && url.pathname === '/api/opportunities') { const item = stampOwner(actor, { id: id(), ...(await body(req)), status: 'candidate' }); return json(res, 201, await store.append('opportunities', item)); }
+      if (req.method === 'POST' && url.pathname === '/api/opportunities') {
+        try {
+          const item = stampOwner(actor, { id: id(), ...(await body(req)), status: 'candidate' });
+          return json(res, 201, await store.append('opportunities', item));
+        } catch (error: unknown) {
+          if (isPersistenceFailure(error instanceof Error ? error.message : String(error))) return persistenceErrorResponse(res, error);
+          throw error;
+        }
+      }
       if (req.method === 'POST' && url.pathname === '/api/opportunities/research') {
         const input = await body(req);
         const opportunities = await find(store, 'opportunities') as (Opportunity & Owned)[];
@@ -473,7 +494,14 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
       }
       if (req.method === 'GET' && url.pathname === '/api/feedback') return json(res, 200, visibleTo(actor, await find(store, 'feedback')));
       if (req.method === 'GET' && url.pathname === '/api/audit-events') return json(res, 200, visibleTo(actor, await find(store, 'events')));
-      if (req.method === 'GET' && url.pathname === '/api/readiness') return json(res, 200, { ready: true, persistence: store.kind, localAdapters: 'available', externalIntegrations: 'blocked', publication: 'blocked', remoteMigration: 'blocked', secrets: 'not_loaded', nextGate: 'human approval plus external readback' });
+      if (req.method === 'GET' && url.pathname === '/api/readiness') {
+        try {
+          await store.read();
+          return json(res, 200, { ready: true, persistence: store.kind, localAdapters: 'available', externalIntegrations: 'blocked', publication: 'blocked', remoteMigration: 'unknown', secrets: 'not_loaded', nextGate: 'human approval plus external readback' });
+        } catch (error: unknown) {
+          return persistenceErrorResponse(res, error);
+        }
+      }
       if (req.method === 'POST' && url.pathname === '/api/metrics') {
         const input = await body(req);
         try {
