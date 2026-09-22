@@ -15,6 +15,11 @@ mustContain(/data-testid="view-loading"/, 'shell must expose loading state');
 mustContain(/data-testid="view-error"/, 'shell must expose error state');
 mustContain(/data-testid="view-empty"/, 'shell must expose empty state');
 mustContain(/function setViewState\(/, 'shell state transitions must be explicit');
+mustContain(/class="nav-group"/, 'navigation must group items into sections');
+mustContain(/data-nav-toggle/, 'navigation groups must expose a collapse toggle');
+mustContain(/toggleNavGroup\(/, 'navigation groups must have collapse behavior');
+mustContain(/is-collapsed/, 'navigation groups must expose collapsed state');
+mustContain(/onkeydown/, 'navigation group collapse must be keyboard accessible');
 mustContain(/matchMedia\(['"]\(max-width: 900px\)['"]\)/, 'shell must verify responsive navigation behavior');
 
 // S7-T01: dashboard/control-room contract is visible and fixture-safe.
