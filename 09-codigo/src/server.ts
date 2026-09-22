@@ -355,7 +355,7 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
         await store.replace('opportunities', opportunityId, updated); return json(res, 200, updated);
       }
 
-      // S1 - Opportunity Radar
+      // S1 - Audience Radar (descoberta de audiência; o Sales Engine terá seu próprio radar comercial)
       if (req.method === 'POST' && url.pathname === '/api/opportunities') {
         try {
           const item = stampOwner(actor, { id: id(), ...(await body(req)), status: 'candidate' });
@@ -385,6 +385,8 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
         if (!research) return json(res, 404, { error: 'research_not_found' });
         if (!requireOwner(res, actor, research)) return;
         const archetypes = generateSeedArchetypes(research);
+        const existingSeeds = (await find(store, 'seeds') as any[]).filter((seed) => seed.researchRef === research.id && seed.ownerId === actor.ownerId);
+        if (existingSeeds.length > 0) return json(res, 200, { archetypes, seeds: existingSeeds, idempotent: true });
         const opportunityData = { audience: research.research?.audienceInsights?.[0] || '', problem: research.research?.contentGaps?.[0] || '', subniche: research.research?.monetizationPaths?.[0] || '', products: [], risks: [] };
         const seeds = createSeedProfiles(research.opportunityId, opportunityData, archetypes, research.id).map((seed) => stampOwner(actor, seed));
         for (const seed of seeds) await store.append('seeds', seed);
