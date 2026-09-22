@@ -436,7 +436,83 @@ A ordem correta não é “embelezar todas as páginas”. É fechar fatias vert
 
 Cada fatia só pode ser marcada pronta com UI, API, persistência/readback, estados de erro/vazio/Gate e teste reproduzível.
 
-## Resposta direta às três perguntas globais
+### Parâmetro 3 — Escopo do MVP
+
+O escopo abaixo é vinculante para a solução. Itens incluídos são obrigatórios para aceitar o MVP, mesmo quando hoje estejam parciais ou ausentes. Itens fora do MVP não podem ser usados como justificativa para declarar o MVP pronto e permanecem bloqueados sem Gate específico.
+
+#### Incluído — obrigatório para aceite
+
+- autenticação e RBAC;
+- multi-tenancy;
+- cadastro de parceiros;
+- cadastro de fontes;
+- intake de pesquisa;
+- Audience Radar;
+- Opportunity Dossier;
+- Seeds Creator via OpenAI;
+- comparação e seleção humana;
+- Profile Building/Farmer;
+- Character Kit;
+- Documento-Mestre de Marca;
+- blog como ativo próprio;
+- matriz de claims e guardrails;
+- Post Machine para drafts;
+- revisão humana obrigatória;
+- dashboard de jobs e Gates;
+- ledger de evidências;
+- ledger de decisões;
+- métricas de produção e audiência;
+- feedback Radar;
+- auditoria;
+- fake adapters e adapters configuráveis fail-closed;
+- testes locais e E2E com fake adapters.
+
+#### Fora do MVP — bloqueado sem Gate
+
+- publicação automática;
+- captura de e-mail ativa;
+- integração real Amazon sem cadastro e permissões;
+- integrações reais TikTok Shop, ClickBank, BuyGoods, MaxWeb, Digistore24, SellHealth, MarketHealth, NutriProfits e MoreNiche;
+- automação de browser não autorizada;
+- criação de contas novas em plataformas;
+- evasão de bloqueio;
+- gasto de mídia;
+- AdSense ativo;
+- workers de escala sem necessidade demonstrada;
+- métricas comerciais inventadas;
+- migration remota sem Gate.
+
+**Regra de leitura:** “fake adapter” é permitido para provar o fluxo local; não substitui as entidades, telas, Gates, persistência e contratos obrigatórios do MVP.
+
+
+### Parâmetro 1 — Objetivos parciais ou não alcançados fazem parte do MVP
+
+Decisão de Sergio: objetivos parciais ou não alcançados **não são escopo futuro automaticamente**; são gaps de aceitação do MVP e devem permanecer no backlog do MVP até implementação e verificação. Um núcleo local, fixture, mock, endpoint isolado, build ou teste unitário não pode promover o item a concluído.
+
+### Segunda parte — Resultados esperados do MVP
+
+| Resultado esperado | Status factual atual | Lacuna para aceite |
+|---|---|---|
+| 1. Fluxo executável localmente e posteriormente em runtime autorizado | **Parcial** | Existe fluxo local/fake e partes de API; o fluxo completo de UI, persistência real, RLS, runtime autorizado e readback não está fechado. |
+| 2. Uma oportunidade com evidência e dossier | **Parcial** | Há dossier/evidência local DEMO; falta oportunidade real com fontes autorizadas, Evidence Ledger conectado e readback completo. |
+| 3. Seeds geradas por LLM e comparadas | **Não alcançado como MVP** | A implementação anterior era determinística/fixture; prompt, geração LLM e Comparison Pack foram preparados localmente, mas ainda não validados/publicados como fluxo real. |
+| 4. Uma Persona selecionada e desenvolvida | **Parcial** | Há domínio local de Persona/Farmer; falta seleção formal versionada, Workspace Farmer completo, persistência/readback e aprovação. |
+| 5. Blog/Marca Editorial documentado e pronto para desenvolvimento | **Não alcançado** | Não existe fluxo operacional de Marca/Blog vinculado à Persona com domínio, About, disclosure, categorias, pilares e Gate. |
+| 6. Calendário preliminar de pautas | **Não alcançado** | Existe calendário fixture; falta calendário persistente, pautas vinculadas a Persona/Marca/versão, fontes, owner e Gate. |
+| 7. Drafts produzidos e revisados por Sergio | **Parcial técnico** | Serviços/API locais de draft existem; falta editor, validações completas, Review Queue funcional e decisão real de Sergio com readback. |
+| 8. Métricas registradas antes da publicação real | **Parcial técnico** | `/api/metrics` e contratos existem; falta tela, formulário/importação, fonte/período/limitação visíveis e feedback integrado ao Radar. |
+| 9. Histórico completo de decisões, versões, Gates e owners | **Parcial** | Há audit/eventos/versionamento local; falta cobertura completa de decisões, Persona/Marca/Draft/Approval, filtros, correlação, readback remoto e histórico transversal. |
+
+### Conclusão dos resultados esperados
+
+Os nove resultados permanecem dentro do MVP. Nenhum deve ser reclassificado como “fase futura” apenas porque a implementação atual ficou parcial. O estado correto é:
+
+```text
+MVP: não aceito
+Fundação local: parcial/verificada
+Resultados esperados: 0 completos; vários parcialmente fundados; gaps de aceitação abertos
+```
+
 
 1. **O que foi planejado?** Um sistema operacional de pesquisa → evidência → oportunidade → Seed → Persona → blog/editorial, com Gates e rastreabilidade.
 2. **O que existe atende?** Não. Existe um protótipo local parcial: shell visual, contratos de domínio, APIs locais e fixtures; não existe ainda a experiência operacional planejada.

@@ -65,7 +65,10 @@ Nenhuma Sprint está concluída. O núcleo local foi verificado, mas a entrega c
 - Smoke HTTP histórico: `/health` 200; criação persistida 201; aprovação sem `true` 422; leitura de estado 200.
 - Limitação: integrações externas não configuradas; persistência remota e RLS ainda não foram executadas/read back neste ambiente.
 
-## Regra operacional
+## Regra de aceitação do MVP
+- **Parâmetro 1 aprovado por Sergio:** objetivos parciais ou não alcançados fazem parte do MVP; permanecem como gaps de aceitação até implementação e verificação. Fundação local, fixture, mock, endpoint isolado, build ou teste unitário não promovem um resultado a concluído.
+- **Parâmetro 3 aprovado por Sergio:** o escopo incluído do MVP é obrigatório para aceite; o escopo fora do MVP permanece bloqueado sem Gate específico. Fake adapters provam fluxo local, mas não substituem entidades, telas, Gates, persistência e contratos incluídos.
+
 Nenhum agente deve publicar, gastar, criar contas ou aplicar migration externa sem contrato, credencial segura, health check, evidência e aprovação específica.
 
 ## Próximo gate
