@@ -1,7 +1,7 @@
 # STATUS — Authority Engine
 
 ## Estado atual
-`EXECUCAO_EM_ANDAMENTO` | Z.ai/GLM 5.2 interrompido sem handoff | fallback GPT-5.6-luna-900k ativo em 2 tracks | monitor 30m configurado | Telegram 60m configurado | Stories concluídas verificáveis: 0 nesta inicialização
+`LOCAL_IMPLEMENTATION_VERIFIED` | 65 testes PASS | E2E fake SharpEye PASS | UI/QA local PASS | dependências externas em HOLD | produção não verificada
 
 ## Provisionamento Control Tower
 - Projeto: `Authority Engine`

@@ -13,10 +13,17 @@ assert.equal((html.match(/\bfetch\(/g) ?? []).length, 1, 'only apiFetch may call
 
 assert.match(html, /const FIXTURE_STATE=/, 'dashboard must expose deterministic local fixture fallback');
 assert.match(html, /mode==='fake'\?'DEMO \/ FAKE':'LIVE'/, 'fixture/live mode must be visible');
-for (const view of ['pipeline','briefs','evidence','comparisons','approvals','metrics','jobs']) {
+for (const view of ['pipeline','radar','briefs','research','evidence','dossier','comparisons','farmer','postmachine','approvals','metrics','jobs','audit','settings']) {
   assert.match(html, new RegExp(`data-view="${view}"`), `${view} must be reachable from the preserved left navigation`);
 }
-assert.match(html, /function controlRoomView\(\)/, 'Control Room must show operational rows');
+assert.match(html, /data-testid="audit-view"/, 'audit view must expose append-only history');
+assert.match(html, /data-testid="settings-view"/, 'settings view must expose governance context');
+assert.match(html, /data-testid="view-blocked"/, 'settings must expose blocked integration state');
+assert.match(html, /tenant_id|Tenant ativo/, 'tenant context must be visible in the UI contract');
+assert.match(html, /Owner/, 'owner context must be visible in the UI contract');
+assert.match(html, /Gate/, 'Gate context must be visible in the UI contract');
+assert.match(html, /disabled>Publicar<|Publicar<[^>]*disabled/, 'publication must not have an enabled UI path');
+assert.doesNotMatch(html, /onclick="[^"]*Publicar/, 'publication must not have a click bypass');
 assert.match(html, /function tableView\(title,rows,columns\)/, 'transversal UI must have a tabular contract renderer');
 assert.doesNotMatch(html, /if\(targetView && titles\[targetView\]\)/, 'direct routes must not reference render-local titles');
 

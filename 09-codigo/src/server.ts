@@ -10,6 +10,9 @@ import { generatePostMachineOutput } from './services/post-machine.js';
 import { assertOwnership, authConfigFromEnv, authenticate, requireRoles, stampOwner, type RuntimeAuthConfig, type RuntimePrincipal, type RuntimeRole } from './auth.js';
 import { LocalPersonaFormationPipeline, defaultPersonaModules, type FormationSnapshot, type GenerationMetadata } from './persona-formation.js';
 import { createApprovedPersonaReadModel, createPersonaApprovedEvent } from './persona-contract.js';
+import { PartnerRegistry, SourceRegistry, OpenAIGateway, isRegistryStatus } from './registries.js';
+import { createLocalBrief, runLocalResearch, type LocalResearchBrief, type LocalResearchRun } from './local-research.js';
+import { validateMetricInput } from './audit.js';
 
 interface FarmerProfile { id: string; profileId?: string; seedId: string; name: string; brand: string; bio: string; disclosure: string; thesis: string; promise: string; mentorRole: 'mentor'; archetype: string; traits: string[]; decisionCompass: string; not: string[]; backstory: string; authorityMethod: string; voice: { tone: string; vocabulary: string[]; prohibited: string[] }; visual: { style: string; palette: string; continuity: string; anchorFace: string; signatureTrait: string; prompts: string[]; credibilitySettings: string[]; credibilityLocations: string[] }; pillars: string[]; formats: string[]; guardrails: string[]; claims: { allowed: string[]; soften: string[]; prohibited: string[] }; aboutPage: string; footerDisclaimer: string; monetizationModel: string[]; crossCuttingThemes: string[]; socialContentIdeas: { blog: string[]; video: string[]; shorts: string[]; stories: string[]; }; weeklyContentPlan: any[]; status: 'development' | 'review' | 'approved'; createdAt: string; ownerId?: string; createdBy?: string; }
 
@@ -48,7 +51,7 @@ const ownerOfFormationResource = (resource: any, actor: RuntimePrincipal): boole
 
 function visibleTo(principal: RuntimePrincipal, items: any[]): any[] {
   if (principal.role === 'admin') return items;
-  return items.filter((item) => !item?.ownerId || item.ownerId === principal.ownerId);
+  return items.filter((item) => (!item?.tenantId || item.tenantId === principal.tenantId) && (!item?.ownerId || item.ownerId === principal.ownerId));
 }
 
 function rolesFor(method: string | undefined, pathname: string): RuntimeRole[] | null {
@@ -70,7 +73,12 @@ function authorize(req: IncomingMessage, res: ServerResponse, config: RuntimeAut
   if (!auth.ok) { json(res, auth.failure.status, auth.failure); return null; }
   const denied = requireRoles(auth.principal, roles);
   if (denied) { json(res, denied.status, denied); return null; }
-  return auth.principal;
+  const requestedTenant = req.headers['x-tenant-id'];
+  const tenantId = typeof requestedTenant === 'string' && requestedTenant.trim() ? requestedTenant.trim() : (auth.principal.tenantId ?? `tenant:${auth.principal.ownerId}`);
+  if (auth.principal.tenantId && auth.principal.tenantId !== tenantId && auth.principal.role !== 'admin') {
+    json(res, 403, { error: 'tenant_forbidden', detail: 'Tenant context does not belong to this principal.' }); return null;
+  }
+  return { ...auth.principal, tenantId };
 }
 
 function requireOwner(res: ServerResponse, principal: RuntimePrincipal, resource: Owned | undefined): boolean {
@@ -83,7 +91,7 @@ function requireOwner(res: ServerResponse, principal: RuntimePrincipal, resource
 function errorStatus(message: string): number {
   if (/not_found/.test(message)) return 404;
   if (/stale|immutable|already_exists|duplicate/.test(message)) return 409;
-  if (/required|missing|not_configured|gate_closed|credential|contract|disclosure|sources|incomplete|profile_not_generated|consistency_review_failed|persona_approval_required|approved_event_identifiers_required/.test(message)) return 422;
+  if (/required|missing|not_configured|status_invalid|tenant_required|partner_metadata|source_metadata|owner_context|credential|contract|disclosure|sources|incomplete|profile_not_generated|consistency_review_failed|persona_approval_required|approved_event_identifiers_required|metric_/.test(message)) return 422;
   if (/approval|forbidden|owner|human_approval/.test(message)) return 403;
   return 400;
 }
@@ -104,6 +112,45 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
       const actor = principal!;
 
       if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, await store.read());
+
+      // S2 registries: HTTP is the only boundary allowed to choose tenant context.
+      if (req.method === 'GET' && (url.pathname === '/api/partners' || url.pathname === '/api/registries/partners')) return json(res, 200, visibleTo(actor, await find(store, 'partners')));
+      if (req.method === 'POST' && (url.pathname === '/api/partners' || url.pathname === '/api/registries/partners')) {
+        const input = await body(req); const registry = new PartnerRegistry();
+        try {
+          const item = registry.register({ tenantId: actor.tenantId!, id: input.id ?? id(), name: input.name, program: input.program, status: input.status ?? 'planned', limitations: input.limitations });
+          const persisted = stampOwner(actor, item); return json(res, 201, await store.append('partners', persisted as any));
+        } catch (error: unknown) { const message = error instanceof Error ? error.message : 'partner_invalid'; return json(res, errorStatus(message), { error: message }); }
+      }
+      if (req.method === 'POST' && /^\/api\/(?:registries\/)?partners\/[^/]+\/status$/.test(url.pathname)) {
+        const partnerId = url.pathname.split('/').at(-2)!; const current = (await find(store, 'partners')).find((item: any) => item.id === partnerId && item.tenantId === actor.tenantId);
+        if (!current) return json(res, 404, { error: 'partner_not_found' }); if (!requireOwner(res, actor, current)) return;
+        const status = (await body(req)).status; if (!isRegistryStatus(status)) return json(res, 422, { error: 'status_invalid' });
+        const updated = { ...current, status, updatedAt: new Date().toISOString() }; return json(res, 200, await store.replace('partners', partnerId, updated));
+      }
+      if (req.method === 'GET' && (url.pathname === '/api/sources' || url.pathname === '/api/registries/sources')) return json(res, 200, visibleTo(actor, await find(store, 'sources')));
+      if (req.method === 'POST' && (url.pathname === '/api/sources' || url.pathname === '/api/registries/sources')) {
+        const input = await body(req); const registry = new SourceRegistry();
+        try {
+          const item = registry.register({ tenantId: actor.tenantId!, id: input.id ?? id(), partnerId: input.partnerId, origin: input.origin, contractVersion: input.contractVersion, scope: input.scope, credentialRef: input.credentialRef, limits: input.limits, status: input.status ?? 'planned', limitation: input.limitation });
+          return json(res, 201, await store.append('sources', stampOwner(actor, item) as any));
+        } catch (error: unknown) { const message = error instanceof Error ? error.message : 'source_invalid'; return json(res, errorStatus(message), { error: message }); }
+      }
+      if (req.method === 'POST' && /^\/api\/(?:registries\/)?sources\/[^/]+\/health$/.test(url.pathname)) {
+        const sourceId = url.pathname.split('/').at(-2)!; const current: any = (await find(store, 'sources')).find((item: any) => item.id === sourceId && item.tenantId === actor.tenantId);
+        if (!current) return json(res, 404, { error: 'source_not_found' }); if (!requireOwner(res, actor, current)) return;
+        if (current.status === 'blocked' || current.status === 'disabled' || !current.credentialRef) return json(res, 422, { error: !current.credentialRef ? 'credential_not_configured' : 'source_blocked' });
+        const updated = { ...current, status: 'verified', lastCheckedAt: new Date().toISOString() }; await store.replace('sources', sourceId, updated); return json(res, 200, { ok: true, checkedAt: updated.lastCheckedAt });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/llm/runs') {
+        const input = await body(req); const model = input.model ?? 'local-fake'; const promptVersion = input.promptVersion ?? 'default'; const schemaVersion = input.schemaVersion ?? 'v1';
+        const gateway = new OpenAIGateway(async () => ({ output: input.mockOutput ?? {}, inputTokens: Number(input.inputTokens ?? 0), outputTokens: Number(input.outputTokens ?? 0), latencyMs: 0 }), { tenantId: actor.tenantId!, model, promptVersion, schemaVersion, budgetCents: Number(input.budgetCents ?? 0), centsPerToken: Number(input.centsPerToken ?? 0) });
+        try {
+          const result = await gateway.run({ tenantId: actor.tenantId!, schema: input.schema ?? {}, input: input.input ?? {} }); const run = { id: id(), tenantId: actor.tenantId, ...result, output: result.output };
+          return json(res, 201, await store.append('llm_runs', stampOwner(actor, run)));
+        } catch (error: unknown) { return json(res, 422, { error: error instanceof Error ? error.message : 'llm_run_blocked' }); }
+      }
+      if (req.method === 'GET' && url.pathname === '/api/llm/runs') return json(res, 200, visibleTo(actor, await find(store, 'llm_runs')));
 
       if (req.method === 'GET' && /^\/api\/personas\/[^/]+\/read-model$/.test(url.pathname)) {
         const personaId = url.pathname.split('/')[3]!; const snapshot = await formationFromStore(store); const persona: any = snapshot.personas.find((item) => item.id === personaId);
@@ -253,6 +300,48 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
         catch (error: unknown) { return json(res, errorStatus(error instanceof Error ? error.message : 'approval_blocked'), { error: error instanceof Error ? error.message : 'approval_blocked' }); }
       }
 
+      // Local-only Radar contract: deterministic DEMO adapter, never a live provider.
+      if (req.method === 'POST' && url.pathname === '/api/research-briefs') {
+        const input = await body(req);
+        try {
+          const brief = createLocalBrief({ tenantId: actor.tenantId!, ownerId: actor.ownerId, market: input.market ?? '', language: input.language ?? '', niche: input.niche ?? '', subniche: input.subniche ?? '', audience: input.audience ?? '', problem: input.problem ?? '', objective: input.objective ?? '' });
+          await store.append('events', stampOwner(actor, { id: id(), type: 'research.brief.created', targetId: brief.id, payload: brief as unknown as Record<string, unknown>, createdAt: new Date().toISOString() }));
+          return json(res, 201, brief);
+        } catch (error: unknown) { const message = error instanceof Error ? error.message : 'research_brief_invalid'; return json(res, errorStatus(message), { error: message }); }
+      }
+      if (req.method === 'GET' && /^\/api\/research-briefs\/[^/]+$/.test(url.pathname)) {
+        const briefId = url.pathname.split('/')[3]!;
+        const brief = (await find(store, 'events')).filter((event: any) => event.type === 'research.brief.created').map((event: any) => event.payload).find((item: any) => item.id === briefId && item.tenantId === actor.tenantId);
+        return brief ? json(res, 200, brief) : json(res, 404, { error: 'research_brief_not_found' });
+      }
+      if (req.method === 'POST' && /^\/api\/research-briefs\/[^/]+\/run$/.test(url.pathname)) {
+        const briefId = url.pathname.split('/')[3]!; const input = await body(req);
+        const events = await find(store, 'events'); const brief = events.filter((event: any) => event.type === 'research.brief.created').map((event: any) => event.payload).find((item: any) => item.id === briefId && item.tenantId === actor.tenantId) as LocalResearchBrief | undefined;
+        if (!brief) return json(res, 404, { error: 'research_brief_not_found' });
+        const opportunity = (await find(store, 'opportunities')).find((item: any) => item.id === input.opportunityId && item.tenantId === actor.tenantId) as Opportunity | undefined;
+        if (!opportunity) return json(res, 404, { error: 'opportunity_not_found' });
+        const result = runLocalResearch(brief, opportunity);
+        await store.append('events', stampOwner(actor, { id: id(), type: 'research.run.completed', targetId: result.run.id, payload: result.run as unknown as Record<string, unknown>, createdAt: new Date().toISOString() }));
+        await store.append('events', stampOwner(actor, { id: id(), type: 'research.dossier.created', targetId: result.dossier.id as string, payload: result.dossier as Record<string, unknown>, createdAt: new Date().toISOString() }));
+        return json(res, 201, result.run);
+      }
+      if (req.method === 'GET' && /^\/api\/research-runs\/[^/]+$/.test(url.pathname)) {
+        const runId = url.pathname.split('/')[3]!; const run = (await find(store, 'events')).filter((event: any) => event.type === 'research.run.completed').map((event: any) => event.payload).find((item: any) => item.id === runId && item.tenantId === actor.tenantId) as LocalResearchRun | undefined;
+        return run ? json(res, 200, run) : json(res, 404, { error: 'research_run_not_found' });
+      }
+      if (req.method === 'GET' && /^\/api\/opportunities\/[^/]+\/dossier$/.test(url.pathname)) {
+        const opportunityId = url.pathname.split('/')[3]!; const dossier = (await find(store, 'events')).filter((event: any) => event.type === 'research.dossier.created').map((event: any) => event.payload).reverse().find((item: any) => item.opportunityId === opportunityId && item.tenantId === actor.tenantId);
+        return dossier ? json(res, 200, dossier) : json(res, 404, { error: 'dossier_not_found' });
+      }
+      if (req.method === 'POST' && /^\/api\/opportunities\/[^/]+\/qualify$/.test(url.pathname)) {
+        const opportunityId = url.pathname.split('/')[3]!; const opportunities = await find(store, 'opportunities'); const current: any = opportunities.find((item: any) => item.id === opportunityId && item.tenantId === actor.tenantId);
+        if (!current) return json(res, 404, { error: 'opportunity_not_found' });
+        const dossier: any = (await find(store, 'events')).filter((event: any) => event.type === 'research.dossier.created').map((event: any) => event.payload).reverse().find((item: any) => item.opportunityId === opportunityId && item.tenantId === actor.tenantId);
+        if (!dossier?.evidence?.length) return json(res, 422, { error: 'evidence_insufficient' });
+        const updated = { ...current, status: 'qualified', qualifiedAt: new Date().toISOString(), qualificationReason: (await body(req)).reason ?? 'local evidence reviewed' };
+        await store.replace('opportunities', opportunityId, updated); return json(res, 200, updated);
+      }
+
       // S1 - Opportunity Radar
       if (req.method === 'POST' && url.pathname === '/api/opportunities') { const item = stampOwner(actor, { id: id(), ...(await body(req)), status: 'candidate' }); return json(res, 201, await store.append('opportunities', item)); }
       if (req.method === 'POST' && url.pathname === '/api/opportunities/research') {
@@ -382,7 +471,20 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
           return json(res, errorStatus(message), { error: message });
         }
       }
-      if (req.method === 'POST' && url.pathname === '/api/metrics') { const metric = recordMetrics({ ...(await body(req)), id: undefined } as any); const feedback = createRadarFeedback(metric); await store.append('metrics', stampOwner(actor, metric)); await store.append('feedback', stampOwner(actor, feedback)); return json(res, 201, { metric, feedback }); }
+      if (req.method === 'GET' && url.pathname === '/api/feedback') return json(res, 200, visibleTo(actor, await find(store, 'feedback')));
+      if (req.method === 'GET' && url.pathname === '/api/audit-events') return json(res, 200, visibleTo(actor, await find(store, 'events')));
+      if (req.method === 'GET' && url.pathname === '/api/readiness') return json(res, 200, { ready: true, persistence: store.kind, localAdapters: 'available', externalIntegrations: 'blocked', publication: 'blocked', remoteMigration: 'blocked', secrets: 'not_loaded', nextGate: 'human approval plus external readback' });
+      if (req.method === 'POST' && url.pathname === '/api/metrics') {
+        const input = await body(req);
+        try {
+          validateMetricInput({ tenantId: actor.tenantId!, source: input.source, period: input.period, sufficient: input.sufficient, limitation: input.limitation });
+          const metric = recordMetrics({ ...input, tenantId: actor.tenantId, id: undefined } as any);
+          const feedback = createRadarFeedback(metric);
+          await store.append('metrics', stampOwner(actor, metric)); await store.append('feedback', stampOwner(actor, feedback));
+          await store.append('events', stampOwner(actor, { id: id(), type: 'metrics.recorded', targetId: metric.id, actor: actor.id, payload: { metricId: metric.id, feedbackId: feedback.id }, createdAt: new Date().toISOString() }));
+          return json(res, 201, { metric, feedback });
+        } catch (error: unknown) { const message = error instanceof Error ? error.message : 'metric_invalid'; return json(res, errorStatus(message), { error: message }); }
+      }
 
       return json(res, 404, { error: 'not_found' });
     } catch (error: unknown) {

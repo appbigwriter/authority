@@ -2,6 +2,7 @@
 -- Never apply remotely without an explicit migration gate and rollback plan.
 create schema if not exists custom_authorityengine;
 
+
 create table if not exists custom_authorityengine.partner_programs (
   id text primary key,
   project_id text not null references custom_authorityengine.projects(id) on delete restrict,

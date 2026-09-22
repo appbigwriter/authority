@@ -58,11 +58,16 @@ export interface EventEnvelope extends DomainEvent {
   schemaVersion: string;
 }
 
+const envelopeTimes = new Map<string, string>();
+
 export function createEventEnvelope(event: DomainEvent, id: string, schemaVersion = 'authority-engine.events.v1'): EventEnvelope {
-  validateTenantRecord({ id: event.aggregateId, tenantId: event.tenantId, version: event.version, createdAt: event.occurredAt ?? new Date().toISOString() });
+  const idempotencyKey = `${event.tenantId}:${event.aggregateType}:${event.aggregateId}:${event.version}:${event.type}`;
+  const occurredAt = event.occurredAt ?? envelopeTimes.get(idempotencyKey) ?? new Date().toISOString();
+  envelopeTimes.set(idempotencyKey, occurredAt);
+  validateTenantRecord({ id: event.aggregateId, tenantId: event.tenantId, version: event.version, createdAt: occurredAt });
   if (!nonEmpty(event.type) || !nonEmpty(event.aggregateType) || !nonEmpty(event.actorId) || !nonEmpty(event.correlationId)) throw new AuthorityError('ID_REQUIRED', 'event_metadata_required');
   if (!nonEmpty(id)) throw new AuthorityError('ID_REQUIRED', 'event_id_required');
-  return { ...event, id, occurredAt: event.occurredAt ?? new Date().toISOString(), schemaVersion, idempotencyKey: `${event.tenantId}:${event.aggregateType}:${event.aggregateId}:${event.version}:${event.type}`, payload: structuredClone(event.payload) };
+  return { ...event, id, occurredAt, schemaVersion, idempotencyKey, payload: structuredClone(event.payload) };
 }
 
 export function requireGate(approved: boolean, gate = 'human_approval'): void {

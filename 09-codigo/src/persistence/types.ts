@@ -60,6 +60,9 @@ export interface StoreData {
   research: OpportunityResearch[];
   farmer_profiles: FarmerProfile[];
   post_machine: PostMachineOutput[];
+  partners: Record<string, unknown>[];
+  sources: Record<string, unknown>[];
+  llm_runs: Record<string, unknown>[];
 }
 
 export type StoreCollection = keyof StoreData;
@@ -101,6 +104,9 @@ export const emptyStoreData = Object.freeze({
   research: [],
   farmer_profiles: [],
   post_machine: [],
+  partners: [],
+  sources: [],
+  llm_runs: [],
 } satisfies StoreData);
 
 export interface PersistenceContext {

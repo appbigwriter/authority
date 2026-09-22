@@ -6,6 +6,7 @@ export interface RuntimePrincipal {
   id: string;
   role: RuntimeRole;
   ownerId: string;
+  tenantId?: string;
 }
 
 export interface RuntimeAuthConfig {
@@ -94,5 +95,5 @@ export function assertOwnership(principal: RuntimePrincipal, resource: { ownerId
 }
 
 export function stampOwner<T extends object>(principal: RuntimePrincipal, value: T): T & { ownerId: string; createdBy: string } {
-  return { ...value, ownerId: principal.ownerId, createdBy: principal.id };
+  return { ...value, tenantId: principal.tenantId ?? 'tenant-local', ownerId: principal.ownerId, createdBy: principal.id };
 }

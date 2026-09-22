@@ -9,6 +9,7 @@ import {
   type StoreCollection,
   type StoreData,
 } from './persistence/types.js';
+import { isRegistryStatus } from './registries.js';
 
 export type {
   AssetRecord,
@@ -53,6 +54,9 @@ const collectionTables = {
   research: 'custom_authorityengine.research',
   farmer_profiles: 'custom_authorityengine.farmer_profiles',
   post_machine: 'custom_authorityengine.post_machine_outputs',
+  partners: 'custom_authorityengine.partner_programs',
+  sources: 'custom_authorityengine.sources',
+  llm_runs: 'custom_authorityengine.llm_runs',
 } as const satisfies Record<StoreCollection, string>;
 
 type PersistedRow = { id: string; payload: unknown };
@@ -89,14 +93,38 @@ const requirePayloadId = (value: unknown): string => {
   return value.id;
 };
 
+const requireRegistryIdentity = (value: unknown): { tenantId: string; ownerId: string } => {
+  const tenantId = pickRequiredString(value, 'tenantId');
+  const ownerId = pickRequiredString(value, 'ownerId');
+  if (!isRegistryStatus(readProperty(value, 'status'))) throw new Error('status_invalid');
+  return { tenantId, ownerId };
+};
+
+const registryDuplicate = (collection: 'partners' | 'sources'): string => collection === 'partners' ? 'partner_already_exists' : 'source_already_exists';
+
 /**
  * Fake JSON persistence for local smoke tests only. Production/runtime relational
  * persistence must depend on PersistenceStore instead of this concrete fake.
  */
 export class JsonStoreFake implements PersistenceStore {
   readonly kind = 'fake-json' as const;
+  private static readonly writes = new Map<string, Promise<void>>();
 
   constructor(private readonly file: string) {}
+
+  private async write(data: StoreData): Promise<void> {
+    await mkdir(dirname(this.file), { recursive: true });
+    await writeFile(this.file, JSON.stringify(data, null, 2));
+  }
+
+  private async enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = JsonStoreFake.writes.get(this.file) ?? Promise.resolve();
+    let result!: T;
+    const current = previous.then(async () => { result = await operation(); });
+    JsonStoreFake.writes.set(this.file, current.catch(() => undefined));
+    await current;
+    return result;
+  }
 
   async read(_context?: Partial<PersistenceContext>): Promise<StoreData> {
     try {
@@ -108,22 +136,33 @@ export class JsonStoreFake implements PersistenceStore {
   }
 
   async append<C extends StoreCollection>(collection: C, value: unknown): Promise<unknown> {
-    const data = await this.read();
-    data[collection].push(value as never);
-    await mkdir(dirname(this.file), { recursive: true });
-    await writeFile(this.file, JSON.stringify(data, null, 2));
-    return value;
+    return this.enqueue(async () => {
+      const data = await this.read();
+      if (collection === 'partners' || collection === 'sources') {
+        const { tenantId } = requireRegistryIdentity(value);
+        const recordId = requirePayloadId(value);
+        if ((data[collection] as unknown[]).some((item) => isObjectWithId(item) && item.id === recordId && readProperty(item, 'tenantId') === tenantId)) throw new Error(registryDuplicate(collection));
+        if (collection === 'sources') {
+          const partnerId = pickRequiredString(value, 'partnerId');
+          if (!(data.partners as unknown[]).some((item) => isObjectWithId(item) && item.id === partnerId && readProperty(item, 'tenantId') === tenantId)) throw new Error('partner_not_found');
+        }
+      }
+      (data[collection] as unknown[]).push(value);
+      await this.write(data);
+      return value;
+    });
   }
 
   async replace<C extends StoreCollection>(collection: C, id: string, value: unknown): Promise<unknown> {
-    const data = await this.read();
-    const items = data[collection] as unknown[];
-    const index = items.findIndex((item) => isObjectWithId(item) && item.id === id);
-    if (index < 0) throw new Error('not_found');
-    items[index] = value;
-    await mkdir(dirname(this.file), { recursive: true });
-    await writeFile(this.file, JSON.stringify(data, null, 2));
-    return value;
+    return this.enqueue(async () => {
+      const data = await this.read();
+      const items = data[collection] as unknown[];
+      const index = items.findIndex((item) => isObjectWithId(item) && item.id === id);
+      if (index < 0) throw new Error('not_found');
+      items[index] = value;
+      await this.write(data);
+      return value;
+    });
   }
 }
 
@@ -164,6 +203,10 @@ export class RelationalAuthorityStore implements PersistenceStore {
     const { projectId, ownerId } = this.context(context);
     const id = requirePayloadId(value);
     const table = collectionTables[collection];
+    if (collection === 'partners' || collection === 'sources') {
+      const identity = requireRegistryIdentity(value);
+      if (identity.ownerId !== ownerId) throw new Error('owner_context_mismatch');
+    }
 
     if (collection === 'events') {
       await this.client.query(
@@ -189,16 +232,25 @@ export class RelationalAuthorityStore implements PersistenceStore {
       return value;
     }
 
-    await this.client.query(
-      `insert into ${table} (id, project_id, owner_id, status, payload) values ($1, $2, $3, $4, $5::jsonb)`,
-      [id, projectId, ownerId, pickStatus(value), JSON.stringify(value)],
-    );
+    if (collection === 'partners') {
+      await this.client.query(`insert into ${table} (id, project_id, owner_id, partner_id, name, status, payload) values ($1,$2,$3,$4,$5,$6,$7::jsonb)`, [id, projectId, ownerId, pickRequiredString(value, 'program'), pickRequiredString(value, 'name'), pickStatus(value) ?? 'planned', JSON.stringify(value)]);
+    } else if (collection === 'sources') {
+      await this.client.query(`insert into ${table} (id, project_id, owner_id, partner_id, origin, contract_version, scope, credential_ref, limits, status, limitation, payload) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)`, [id, projectId, ownerId, pickRequiredString(value, 'partnerId'), pickRequiredString(value, 'origin'), pickRequiredString(value, 'contractVersion'), pickRequiredString(value, 'scope'), pickOptionalString(value, 'credentialRef'), pickRequiredString(value, 'limits'), pickStatus(value) ?? 'planned', pickOptionalString(value, 'limitation'), JSON.stringify(value)]);
+    } else if (collection === 'llm_runs') {
+      await this.client.query(`insert into ${table} (id, project_id, owner_id, tenant_id, model, prompt_version, schema_version, status, input_tokens, output_tokens, cost_cents, latency_ms, sanitized_output, error_code) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14)`, [id, projectId, ownerId, pickRequiredString(value, 'tenantId'), pickRequiredString(value, 'model'), pickRequiredString(value, 'promptVersion'), pickRequiredString(value, 'schemaVersion'), pickStatus(value) ?? 'completed', readProperty(value, 'inputTokens'), readProperty(value, 'outputTokens'), readProperty(value, 'costCents'), readProperty(value, 'latencyMs'), JSON.stringify(readProperty(value, 'output') ?? null), pickOptionalString(value, 'errorCode')]);
+    } else {
+      await this.client.query(`insert into ${table} (id, project_id, owner_id, status, payload) values ($1, $2, $3, $4, $5::jsonb)`, [id, projectId, ownerId, pickStatus(value), JSON.stringify(value)]);
+    }
     return value;
   }
 
   async replace<C extends StoreCollection>(collection: C, id: string, value: unknown, context?: Partial<PersistenceContext>): Promise<StoreData[C][number]> {
     const { projectId, ownerId } = this.context(context);
     const table = collectionTables[collection];
+    if (collection === 'partners' || collection === 'sources') {
+      const identity = requireRegistryIdentity(value);
+      if (identity.ownerId !== ownerId) throw new Error('owner_context_mismatch');
+    }
 
     let result;
     if (collection === 'events') {

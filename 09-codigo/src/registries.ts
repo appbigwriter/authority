@@ -1,16 +1,20 @@
 export type RegistryStatus = 'planned' | 'configured' | 'verified' | 'blocked' | 'disabled';
+const registryStatuses: readonly RegistryStatus[] = ['planned', 'configured', 'verified', 'blocked', 'disabled'];
+export const isRegistryStatus = (value: unknown): value is RegistryStatus => typeof value === 'string' && registryStatuses.includes(value as RegistryStatus);
 export interface Partner { tenantId: string; id: string; name: string; program: string; status: RegistryStatus; limitations?: string; updatedAt: string; }
 export interface Source { tenantId: string; id: string; partnerId: string; origin: string; contractVersion: string; scope: string; credentialRef?: string; limits: string; status: RegistryStatus; lastCheckedAt?: string; limitation?: string; }
 
 const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
 const now = () => new Date().toISOString();
 function requireTenant(tenantId: string): void { if (!nonEmpty(tenantId)) throw new Error('tenant_required'); }
+function requireStatus(status: unknown): asserts status is RegistryStatus { if (!isRegistryStatus(status)) throw new Error('status_invalid'); }
 
 export class PartnerRegistry {
   private readonly entries = new Map<string, Partner>();
   register(input: Omit<Partner, 'updatedAt'>): Partner {
     requireTenant(input.tenantId);
     if (!nonEmpty(input.id) || !nonEmpty(input.name) || !nonEmpty(input.program)) throw new Error('partner_metadata_required');
+    requireStatus(input.status);
     const key = `${input.tenantId}:${input.id}`;
     if (this.entries.has(key)) throw new Error('partner_already_exists');
     const entry = { ...input, updatedAt: now() };
@@ -18,7 +22,7 @@ export class PartnerRegistry {
     return structuredClone(entry);
   }
   list(tenantId: string): Partner[] { requireTenant(tenantId); return [...this.entries.values()].filter((item) => item.tenantId === tenantId).map((item) => structuredClone(item)); }
-  updateStatus(tenantId: string, id: string, status: RegistryStatus): Partner { const key = `${tenantId}:${id}`; const current = this.entries.get(key); if (!current) throw new Error('partner_not_found'); const updated = { ...current, status, updatedAt: now() }; this.entries.set(key, updated); return structuredClone(updated); }
+  updateStatus(tenantId: string, id: string, status: RegistryStatus): Partner { requireTenant(tenantId); requireStatus(status); const key = `${tenantId}:${id}`; const current = this.entries.get(key); if (!current) throw new Error('partner_not_found'); const updated = { ...current, status, updatedAt: now() }; this.entries.set(key, updated); return structuredClone(updated); }
 }
 
 export class SourceRegistry {
@@ -26,6 +30,7 @@ export class SourceRegistry {
   register(input: Source): Source {
     requireTenant(input.tenantId);
     if (!nonEmpty(input.id) || !nonEmpty(input.origin) || !nonEmpty(input.contractVersion) || !nonEmpty(input.scope) || !nonEmpty(input.limits)) throw new Error('source_metadata_required');
+    requireStatus(input.status);
     const key = `${input.tenantId}:${input.id}`;
     if (this.entries.has(key)) throw new Error('source_already_exists');
     const entry = structuredClone(input);
@@ -44,6 +49,7 @@ export class SourceRegistry {
 
 export interface GatewayRequest { tenantId: string; schema: { required?: string[] }; input: Record<string, unknown>; }
 export interface GatewayResponse { status: 'completed'; output: Record<string, any>; usage: { inputTokens: number; outputTokens: number; costCents: number; latencyMs: number }; model: string; promptVersion: string; schemaVersion: string; }
+export interface GatewayRunRecord extends GatewayResponse { id: string; tenantId: string; }
 export interface GatewayTransportResult { output: Record<string, any>; inputTokens: number; outputTokens: number; latencyMs: number; }
 export type GatewayTransport = (input: { model: string; promptVersion: string; input: Record<string, unknown> }) => Promise<GatewayTransportResult>;
 export interface GatewayConfig { tenantId: string; model: string; promptVersion: string; schemaVersion: string; budgetCents: number; centsPerToken?: number; }
