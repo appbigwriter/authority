@@ -4,7 +4,7 @@ import type { PersistenceStore, StoreCollection } from './repository.js';
 import { enqueueBrief, produceDraft, submitForReview, requestHumanApproval, recordMetrics, createRadarFeedback, publishAssisted, UnconfiguredPublishingAdapter } from './post-machine.js';
 import type { Approval, ChannelAdapter, ContentBrief, ContentDraft, Profile, Opportunity } from './types.js';
 import { researchOpportunityWithLLM, createResearchRecord } from './services/opportunity-research.js';
-import { generateSeedArchetypes, createSeedProfiles } from './services/influencer-seeds.js';
+import { generateSeedArchetypes, createSeedProfiles, generateSeedProfilesWithLLM, SEED_GENERATION_PROMPT } from './services/influencer-seeds.js';
 import { createFarmerProfile } from './services/influencer-farmer.js';
 import { generatePostMachineOutput } from './services/post-machine.js';
 import { assertOwnership, authConfigFromEnv, authenticate, requireRoles, stampOwner, type RuntimeAuthConfig, type RuntimePrincipal, type RuntimeRole } from './auth.js';
@@ -355,6 +355,27 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
         await store.replace('opportunities', opportunityId, updated); return json(res, 200, updated);
       }
 
+      if (req.method === 'POST' && /^\/api\/opportunities\/[^/]+\/review$/.test(url.pathname)) {
+        const opportunityId = url.pathname.split('/')[3]!;
+        const current: any = (await find(store, 'opportunities')).find((item: any) => item.id === opportunityId && item.tenantId === actor.tenantId);
+        if (!current) return json(res, 404, { error: 'opportunity_not_found' });
+        const input = await body(req);
+        const event = stampOwner(actor, { id: id(), type: 'research.dossier.review_requested', targetId: opportunityId, payload: { opportunityId, reason: input.reason ?? 'Revisão humana solicitada' }, createdAt: new Date().toISOString() });
+        await store.append('events', event);
+        return json(res, 200, { opportunity: current, reviewRequested: true, eventId: event.id });
+      }
+      if (req.method === 'POST' && /^\/api\/opportunities\/[^/]+\/block$/.test(url.pathname)) {
+        const opportunityId = url.pathname.split('/')[3]!;
+        const current: any = (await find(store, 'opportunities')).find((item: any) => item.id === opportunityId && item.tenantId === actor.tenantId);
+        if (!current) return json(res, 404, { error: 'opportunity_not_found' });
+        const input = await body(req);
+        const updated = { ...current, status: 'blocked', blockedAt: new Date().toISOString(), blockReason: input.reason ?? 'Bloqueado na revisão do Dossier' };
+        await store.replace('opportunities', opportunityId, updated);
+        await store.append('events', stampOwner(actor, { id: id(), type: 'opportunity.blocked', targetId: opportunityId, payload: updated, createdAt: new Date().toISOString() }));
+        return json(res, 200, updated);
+      }
+
+
       // S1 - Audience Radar (descoberta de audiência; o Sales Engine terá seu próprio radar comercial)
       if (req.method === 'POST' && url.pathname === '/api/opportunities') {
         try {
@@ -378,6 +399,7 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
       if (req.method === 'GET' && url.pathname === '/api/research') return json(res, 200, visibleTo(actor, await find(store, 'research')));
 
       // S2 - Influencer Seeds Creator
+      if (req.method === 'GET' && url.pathname === '/api/seeds/prompt') return json(res, 200, { model: process.env.AUTHORITY_SEED_MODEL || 'gpt-4o-mini', prompt: SEED_GENERATION_PROMPT });
       if (req.method === 'POST' && url.pathname === '/api/seeds/generate') {
         const input = await body(req);
         const researchList = await find(store, 'research');
@@ -387,21 +409,36 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
         const archetypes = generateSeedArchetypes(research);
         const existingSeeds = (await find(store, 'seeds') as any[]).filter((seed) => seed.researchRef === research.id && seed.ownerId === actor.ownerId);
         if (existingSeeds.length > 0) return json(res, 200, { archetypes, seeds: existingSeeds, idempotent: true });
-        const opportunityData = { audience: research.research?.audienceInsights?.[0] || '', problem: research.research?.contentGaps?.[0] || '', subniche: research.research?.monetizationPaths?.[0] || '', products: [], risks: [] };
-        const seeds = createSeedProfiles(research.opportunityId, opportunityData, archetypes, research.id).map((seed) => stampOwner(actor, seed));
+        const opportunities = await find(store, 'opportunities') as any[];
+        const opportunity = opportunities.find((item) => item.id === research.opportunityId && item.ownerId === actor.ownerId);
+        if (!opportunity) return json(res, 404, { error: 'opportunity_not_found_for_research' });
+        const seeds = (await generateSeedProfilesWithLLM({ research: { ...research.research, id: research.id }, opportunity })).map((seed) => stampOwner(actor, seed));
         for (const seed of seeds) await store.append('seeds', seed);
         return json(res, 201, { archetypes, seeds });
       }
       if (req.method === 'POST' && url.pathname === '/api/seeds') { const item = stampOwner(actor, { id: id(), ...(await body(req)), status: 'proposed' }); return json(res, 201, await store.append('seeds', item)); }
       if (req.method === 'POST' && url.pathname === '/api/seeds/select') {
         const input = await body(req);
+        const seedIds = Array.isArray(input.seedIds) ? input.seedIds.filter((value: unknown): value is string => typeof value === 'string') : [input.seedId].filter((value: unknown): value is string => typeof value === 'string');
+        if (seedIds.length === 0) return json(res, 422, { error: 'seed_ids_required' });
         const seeds = (await store.read()).seeds as any[];
-        const selected = seeds.find((s: any) => s.id === input.seedId);
-        if (!selected) return json(res, 404, { error: 'seed_not_found' });
-        if (!requireOwner(res, actor, selected)) return;
-        const updated = { ...selected, status: 'selected' as const };
-        await store.replace('seeds', input.seedId, updated);
-        return json(res, 200, updated);
+        const selected = seedIds.map((seedId: string) => seeds.find((seed: any) => seed.id === seedId));
+        if (selected.some((seed: any) => !seed)) return json(res, 404, { error: 'seed_not_found' });
+        for (const seed of selected as any[]) if (!requireOwner(res, actor, seed)) return;
+        const updated = [];
+        for (const seed of selected as any[]) { const next = { ...seed, status: 'selected' as const }; await store.replace('seeds', seed.id, next); updated.push(next); }
+        return json(res, 200, { seeds: updated, selectedSeedIds: seedIds });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/seeds/compare') {
+        const input = await body(req);
+        const seedIds = Array.isArray(input.seedIds) ? input.seedIds.filter((value: unknown): value is string => typeof value === 'string') : [];
+        if (seedIds.length < 1) return json(res, 422, { error: 'seed_ids_required' });
+        const seeds = (await store.read()).seeds as any[];
+        const selected = seedIds.map((seedId: string) => seeds.find((seed: any) => seed.id === seedId));
+        if (selected.some((seed: any) => !seed)) return json(res, 404, { error: 'seed_not_found' });
+        for (const seed of selected as any[]) if (!requireOwner(res, actor, seed)) return;
+        const unique = (key: string) => [...new Set(selected.flatMap((seed: any) => Array.isArray(seed[key]) ? seed[key] : seed[key] ? [seed[key]] : []))];
+        return json(res, 200, { scenarioId: `scenario_${seedIds.join('_')}`, seedIds, seeds: selected, scenario: { name: selected.map((seed: any) => seed.name).join(' + '), archetypes: unique('archetype'), intellectualTraits: unique('intellectualTraits'), physicalIdentity: selected.map((seed: any) => seed.physicalIdentity).filter(Boolean), sharedPillars: unique('formats'), risks: unique('risks'), recommendation: 'Revisar coerência entre as sementes antes de desenvolver a Persona.' } });
       }
 
       // S3 - Influencer Farmer

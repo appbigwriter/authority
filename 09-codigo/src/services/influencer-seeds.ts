@@ -1,5 +1,94 @@
-import type { OpportunityResearch as ExtResearch } from '../types-extended.js';
-import type { InfluencerSeedFull, SeedArchetype } from '../types-extended.js';
+import type { OpportunityResearch as ExtResearch, InfluencerSeedFull, SeedArchetype } from '../types-extended.js';
+export const SEED_GENERATION_PROMPT = `
+Você é o estrategista de personas de autoridade da FBR Agency.
+Sua tarefa é transformar uma pesquisa profunda de audiência em sementes de personas exploráveis, não em personagens genéricos.
+
+Para cada semente, descreva:
+- o encaixe com o público, problema e lacunas da pesquisa;
+- arquétipo, tese, promessa, função editorial e diferenciação;
+- características intelectuais: modo de raciocinar, repertório, critérios, tensões e limites epistemológicos;
+- características físicas e visuais: faixa aparente, apresentação, âncora facial não-identificável, silhueta, guarda-roupa, ambientes de credibilidade e elementos de continuidade;
+- voz, pilares, formatos, riscos, claims proibidos e disclosure de persona sintética.
+
+Regras:
+- gere de 3 a 6 sementes realmente diferentes entre si;
+- não use experiência pessoal, credenciais, testemunhos corporais ou autoridade inventada;
+- não clone pessoas reais e não determine etnia/ancestralidade como atalho de autoridade;
+- características físicas devem servir à continuidade visual e à linguagem editorial, nunca a estereótipos;
+- se a pesquisa não sustentar uma afirmação, escreva "hipótese";
+- responda SOMENTE JSON válido, sem markdown.
+
+Schema obrigatório:
+{
+  "seeds": [{
+    "name": "string",
+    "archetype": "string",
+    "audienceFit": "string",
+    "positioning": "string",
+    "function": "string",
+    "thesis": "string",
+    "promise": "string",
+    "intellectualTraits": ["string"],
+    "traits": ["string"],
+    "physicalIdentity": {"apparentAgeRange":"string","presentation":"string","faceAnchor":"string","silhouette":"string","wardrobe":"string","credibilitySettings":["string"],"credibilityLocations":["string"]},
+    "voice": "string",
+    "contentPillars": ["string"],
+    "formats": ["string"],
+    "differentiation": "string",
+    "risks": ["string"],
+    "guardrails": ["string"]
+  }]
+}`;
+
+export function buildSeedGenerationPrompt(input: any): string {
+  return `${SEED_GENERATION_PROMPT}\n\nCONTEXTO DA OPORTUNIDADE:\n${JSON.stringify(input, null, 2)}\n\nRetorne apenas o JSON do schema obrigatório.`;
+}
+
+function seedIdPart(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'seed';
+}
+
+export async function generateSeedProfilesWithLLM(input: any): Promise<any[]> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('LLM_API_KEY_NOT_CONFIGURED');
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: process.env.AUTHORITY_SEED_MODEL || 'gpt-4o-mini',
+      messages: [{ role: 'system', content: SEED_GENERATION_PROMPT }, { role: 'user', content: buildSeedGenerationPrompt(input) }],
+      temperature: 0.65,
+      response_format: { type: 'json_object' },
+    }),
+  });
+  if (!response.ok) throw new Error(`LLM_SEED_API_ERROR:${response.status}`);
+  const payload = await response.json();
+  const content = payload.choices?.[0]?.message?.content;
+  if (!content) throw new Error('EMPTY_LLM_SEED_RESPONSE');
+  const parsed = JSON.parse(content);
+  if (!Array.isArray(parsed.seeds) || parsed.seeds.length < 3) throw new Error('LLM_SEED_SCHEMA_INVALID');
+  const opportunityId = input.opportunity?.id || input.opportunityId;
+  const researchId = input.research?.id || input.researchId;
+  return parsed.seeds.slice(0, 6).map((seed: any, index: number) => {
+    const physical = seed.physicalIdentity || {};
+    return {
+      ...seed,
+      id: `seed_${opportunityId}_${seedIdPart(seed.name || `seed-${index + 1}`)}`,
+      opportunityId,
+      researchRef: researchId,
+      name: seed.name || `Seed ${index + 1}`,
+      function: seed.function || seed.positioning || 'Traduz pesquisa em decisão editorial.',
+      audience: input.opportunity?.audience || '',
+      problem: input.opportunity?.problem || '',
+      visualDirection: physical.credibilityLocations?.join(', ') || physical.presentation || '',
+      anchorFace: physical.faceAnchor || 'âncora visual abstrata e consistente',
+      signatureTrait: physical.silhouette || 'presença editorial reconhecível',
+      formats: seed.formats || seed.contentPillars || [],
+      status: 'proposed',
+    };
+  });
+}
+
 
 const ARCHETYPES: SeedArchetype[] = [
   {
