@@ -1,7 +1,7 @@
 # STATUS — Authority Engine
 
 ## Estado atual
-`PLANEJAMENTO_EM_VALIDACAO` | programação bloqueada | PRD aprovado | backlog S0–S10 planejado | 46 Stories/275 subtarefas catalogadas | revisão da ordem de execução pendente
+`EXECUCAO_EM_ANDAMENTO` | Z.ai/GLM 5.2 interrompido sem handoff | fallback GPT-5.6-luna-900k ativo em 2 tracks | monitor 30m configurado | Telegram 60m configurado | Stories concluídas verificáveis: 0 nesta inicialização
 
 ## Provisionamento Control Tower
 - Projeto: `Authority Engine`

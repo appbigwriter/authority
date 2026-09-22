@@ -1,4 +1,7 @@
 export * from './types.js';
+export * from './domain-contracts.js';
+export * from './registries.js';
+export * from './audit.js';
 export * from './opportunity-radar.js';
 export * from './influencer-seeds.js';
 export * from './influencer-farmer.js';
