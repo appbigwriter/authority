@@ -189,11 +189,22 @@ export class RelationalAuthorityStore implements PersistenceStore {
 
     for (const collection of operationalCollections) {
       const table = collectionTables[collection];
-      const result = await this.client.query<PersistedRow>(
-        `select id, payload from ${table} where project_id = $1 and owner_id = $2 order by created_at asc, id asc`,
-        [projectId, ownerId],
-      );
-      data[collection] = result.rows.map((row) => ({ ...(row.payload as object), id: row.id })) as never;
+      if (collection === 'personas') {
+        const result = await this.client.query<Record<string, unknown>>(`select id, project_id, owner_id, name, current_version_id, status, created_at, updated_at from ${table} where project_id = $1 and owner_id = $2 order by created_at asc, id asc`, [projectId, ownerId]);
+        data[collection] = result.rows.map((row) => ({ id: row.id, projectId: row.project_id, ownerId: row.owner_id, name: row.name, currentVersionId: row.current_version_id ?? null, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at })) as never;
+      } else if (collection === 'persona_versions') {
+        const result = await this.client.query<Record<string, unknown>>(`select id, persona_id, project_id, owner_id, version, status, snapshot, source_run_ids, content_hash, created_at from ${table} where project_id = $1 and owner_id = $2 order by created_at asc, id asc`, [projectId, ownerId]);
+        data[collection] = result.rows.map((row) => ({ id: row.id, personaId: row.persona_id, projectId: row.project_id, ownerId: row.owner_id, version: row.version, status: row.status, snapshot: row.snapshot, sourceRunIds: row.source_run_ids, contentHash: row.content_hash ?? undefined, createdAt: row.created_at })) as never;
+      } else if (collection === 'persona_version_transitions') {
+        const result = await this.client.query<Record<string, unknown>>(`select id, persona_version_id, project_id, owner_id, from_status, to_status, actor, reason, invalidation, created_at from ${table} where project_id = $1 and owner_id = $2 order by created_at asc, id asc`, [projectId, ownerId]);
+        data[collection] = result.rows.map((row) => ({ id: row.id, personaVersionId: row.persona_version_id, projectId: row.project_id, ownerId: row.owner_id, from: row.from_status, to: row.to_status, actor: row.actor, reason: row.reason, invalidation: row.invalidation ?? undefined, createdAt: row.created_at })) as never;
+      } else {
+        const result = await this.client.query<PersistedRow>(
+          `select id, payload from ${table} where project_id = $1 and owner_id = $2 order by created_at asc, id asc`,
+          [projectId, ownerId],
+        );
+        data[collection] = result.rows.map((row) => ({ ...(row.payload as object), id: row.id })) as never;
+      }
     }
 
     return data;
@@ -206,6 +217,21 @@ export class RelationalAuthorityStore implements PersistenceStore {
     if (collection === 'partners' || collection === 'sources') {
       const identity = requireRegistryIdentity(value);
       if (identity.ownerId !== ownerId) throw new Error('owner_context_mismatch');
+    }
+
+    if (collection === 'personas') {
+      await this.client.query(`insert into ${table} (id, project_id, owner_id, name, current_version_id, status) values ($1, $2, $3, $4, $5, $6)`, [id, projectId, ownerId, pickRequiredString(value, 'name'), pickOptionalString(value, 'currentVersionId'), pickStatus(value) ?? 'draft']);
+      return value;
+    }
+
+    if (collection === 'persona_versions') {
+      await this.client.query(`insert into ${table} (id, persona_id, project_id, owner_id, version, status, snapshot, source_run_ids, content_hash) values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9)`, [id, pickRequiredString(value, 'personaId'), projectId, ownerId, pickNumber(value, 'version', 1), pickStatus(value) ?? 'draft', JSON.stringify(readProperty(value, 'snapshot') ?? {}), JSON.stringify(readProperty(value, 'sourceRunIds') ?? []), pickOptionalString(value, 'contentHash')]);
+      return value;
+    }
+
+    if (collection === 'persona_version_transitions') {
+      await this.client.query(`insert into ${table} (id, persona_version_id, project_id, owner_id, from_status, to_status, actor, reason, invalidation) values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)`, [id, pickRequiredString(value, 'personaVersionId'), projectId, ownerId, pickRequiredString(value, 'from'), pickRequiredString(value, 'to'), pickRequiredString(value, 'actor'), pickRequiredString(value, 'reason'), JSON.stringify(readProperty(value, 'invalidation') ?? null)]);
+      return value;
     }
 
     if (collection === 'events') {
