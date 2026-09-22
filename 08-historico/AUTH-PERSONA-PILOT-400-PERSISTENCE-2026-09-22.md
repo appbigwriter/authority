@@ -79,7 +79,17 @@ git diff --check: PASS
 - Resultado: **rollback automático**, sem alteração no banco.
 - Causa: `DATABASE_URL` local contém referência/placeholder de Secret Manager; a conexão tentou resolver host literal `base` e falhou com `getaddrinfo ENOTFOUND base`.
 - `POSTGRES_PASS` não faz parte do contrato do Authority e não é lida pelo código; a credencial PostgreSQL é transportada exclusivamente em `DATABASE_URL` como DSN completa.
-## Bloqueio remoto confirmado
+## Decisão de tenant — FBR Agency
+
+- Tenant oficial do Authority: `FBR Agency`.
+- Identificador não secreto: `fbr-agency`.
+- `AUTHORITY_TENANT_ID=fbr-agency` foi adicionado ao contrato de ambiente.
+- Tokens de runtime agora recebem `tenantId=fbr-agency` por padrão.
+- `stampOwner()` não usa mais `tenant-local`.
+- O seletor da UI deixa de exibir `Demo tenant` e passa a exibir `FBR Agency`.
+- O tenant switcher permanece não-mutável e sem cadastro multi-tenant; a fronteira relacional continua sendo `project_id + owner_id + RLS`.
+- A mudança foi validada localmente com build, 65 testes e `git diff --check` aprovados.
+- O runtime público ainda precisa de deploy para refletir essa mudança.
 
 A aplicação remota alcança um PostgreSQL, mas a relação não existe. O ambiente precisa receber uma DSN real e acessível, não `<secret-manager:...>`/placeholder. O documento de Control Tower define a infraestrutura esperada como Supabase VPS, database `postgres`, host `76.13.168.223`, porta `15432`, com credencial resolvida server-side.
 

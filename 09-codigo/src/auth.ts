@@ -29,10 +29,16 @@ const ROLE_RANK: Record<RuntimeRole, number> = {
   admin: 100,
 };
 
+const DEFAULT_TENANT_ID = 'fbr-agency';
+
+function runtimeTenantId(): string {
+  return process.env.AUTHORITY_TENANT_ID?.trim() || DEFAULT_TENANT_ID;
+}
+
 function envPrincipal(tokenName: string, id: string, role: RuntimeRole): [string, RuntimePrincipal] | null {
   const token = process.env[tokenName];
   if (!token) return null;
-  return [token, { id, role, ownerId: id }];
+  return [token, { id, role, ownerId: id, tenantId: runtimeTenantId() }];
 }
 
 export function authConfigFromEnv(): RuntimeAuthConfig {
@@ -95,5 +101,5 @@ export function assertOwnership(principal: RuntimePrincipal, resource: { ownerId
 }
 
 export function stampOwner<T extends object>(principal: RuntimePrincipal, value: T): T & { ownerId: string; createdBy: string } {
-  return { ...value, tenantId: principal.tenantId ?? 'tenant-local', ownerId: principal.ownerId, createdBy: principal.id };
+  return { ...value, tenantId: principal.tenantId ?? DEFAULT_TENANT_ID, ownerId: principal.ownerId, createdBy: principal.id };
 }
