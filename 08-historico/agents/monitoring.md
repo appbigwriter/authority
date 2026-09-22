@@ -229,4 +229,441 @@ A execução atende ao briefing de monitoramento: o snapshot é factual, os dois
 
 ## Gate de expectativa
 
-A execução atende ao briefing: registra timestamp, processos, configuração, estados objetivos, 46 pending, 0 concluídas, blockers com rota e fallback configurado sem dispatch indevido. O resultado factual não sustenta declarar agente ativo, Story/Sprint concluída ou fallback executado.
+A execução atende ao briefing de monitoramento: registra timestamp, processos, configuração, estados objetivos, 46 pending, 0 concluídas, blockers com rota e fallback configurado sem dispatch indevido. O resultado factual não sustenta declarar agente ativo, Story/Sprint concluída ou fallback executado.
+
+---
+
+# Operational monitoring receipt — Authority Engine
+
+- **Monitor ID:** `AUTH-MONITOR-20260922-0023`
+- **Timestamp:** `2026-09-22 00:23:06 -0300` (terminal)
+- **Escopo:** processos `z.ai`/`zai`/GLM, atividade e evidência dos Agents A/B, Stories/Sprints verificáveis, blockers, next actions e fallback configurado.
+- **Regra aplicada:** nenhum código, deploy, migration, publicação, gasto, secret ou processo novo foi iniciado nesta execução.
+
+## Snapshot objetivo
+
+- `tasklist` não mostrou processos `z.ai`, `zai` ou `GLM`; foram observados apenas processos genéricos `Hermes.exe`, sem evidência suficiente para atribuí-los aos tracks.
+- `agent-a-progress.md` existe, mtime `2026-09-21 21:39:40 -0300`, último conteúdo com `npm run check` de 62 testes PASS e handoff aguardando revisão/Gates S0/S1/S2.
+- `agent-b-progress.md` existe, mtime `2026-09-21 22:22:39 -0300`, último conteúdo com contratos UI, browser smoke e fake E2E locais PASS; auth/tenant/RBAC/RLS/readback permanecem pendentes.
+- Configuração de fallback registrada nos progress/monitoring anteriores: `delegation.provider=openai-codex`, `delegation.model=gpt-5.6-luna-900k`; não foi revalidada por comando Hermes nesta janela e nenhum dispatch foi feito.
+
+## Estado objetivo dos agentes
+
+| Agente/track | Estado | Base objetiva | Causa/impacto | NextAction | NextCheck |
+|---|---|---|---|---|---|
+| Agent A — backend/domain | `waiting` | progress file existente, evidência local e handoff; sem processo Z.ai/zai/GLM visível | aguarda revisão formal e Gates S0/S1/S2; não há aceite integral | coordenador revisar `09-codigo/src/contracts.ts`, diff, receipts e decidir os Gates | próximo ciclo ou após revisão formal |
+| Agent B — frontend/UI/UX | `waiting` | progress file existente, slices UI/browser/fake E2E locais e handoff; sem worker visível | slices locais não provam auth server-side, tenant/RBAC/RLS ou readback real | reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke independente | próximo ciclo ou após readback/QA |
+
+**Contagem objetiva:** `working=0`, `completed=0`, `waiting=2`, `failed=0`, `missing=0`.
+
+## Stories e Sprints
+
+- Catálogo lido: `02-prd/stories/AUTHORITY-ENGINE-STORIES.md`.
+- Contagem por script: **46 Stories**, todas com status `planned`; **0 não-planned**.
+- Stories concluídas verificáveis nesta execução: **0**.
+- Stories pending: **46**.
+- Sprints concluídas verificáveis: **0**.
+- Backlog mestre permanece `planejado`; execução depende da revisão final e abertura do Sprint 0.
+- `S3-T01 — Research Brief` é a próxima fatia indicada no progresso do Agent A, mas não é elegível nesta janela enquanto Gates S0/S1/S2 não forem revisados/liberados.
+- Fallback GPT não acionado: não houve falha primária observada nem Story liberada; iniciar processo agora poderia duplicar trabalho ou ultrapassar Gates.
+
+## Blockers ativos
+
+### Blocker A — Agent A / revisão formal e Gates S0/S1/S2
+- **Causa:** contratos completos, wiring relacional e aceite formal dos Gates não foram verificados pelo coordenador.
+- **Impacto:** S3-T01 não pode iniciar como Story liberada; nenhuma Sprint pode ser concluída.
+- **Owner:** coordenador/revisor GPT-5.6-luna-900k; runtime/infra para wiring relacional quando autorizado.
+- **NextAction:** revisar contratos, diff, receipts e critérios S0/S1/S2; registrar decisão explícita de Gate.
+- **NextCheck:** próximo ciclo ou imediatamente após revisão formal.
+- **Solução/critério de encerramento:** Gate com evidência/readback aplicável registrado; então encaminhar Story elegível ao owner, usando `openai-codex/gpt-5.6-luna-900k` se o provider primário falhar.
+
+### Blocker B — Agent B / readback backend e QA independente
+- **Causa:** UI/browser smoke local verificado, porém auth server-side, tenant/RBAC/RLS e `/api/state` real/readback não confirmados.
+- **Impacto:** S1-T04/S7-T01/S7-T02 não podem receber full Gate nem provar integração real.
+- **Owner:** coordenador/Agent A para contrato/readback; QA independente para repetição.
+- **NextAction:** reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke com evidência independente.
+- **NextCheck:** próximo ciclo ou após readback disponível.
+- **Solução/critério de encerramento:** readback persistido e QA reproduzido; então classificar o Gate correspondente.
+
+## Reconciliação e limitações
+
+- `STATUS.md`: `LOCAL_IMPLEMENTATION_VERIFIED`, núcleo local verificado/parcial, dependências externas em HOLD e produção não verificada; nenhuma Sprint concluída.
+- O catálogo e o backlog continuam tratando a execução como planejada; slices locais dos progress files foram mantidas como `slice verificada localmente`/`partial`, não como Stories concluídas.
+- Não há evidência de falha de provider nesta janela; portanto não houve condição operacional para fallback.
+
+## Gate de expectativa
+
+A execução atende ao briefing: timestamp, processos, progress files, estado objetivo, stories pending/concluídas, blockers com causa/impacto/owner/nextAction/nextCheck/critério, e decisão de não despachar sem Story elegível foram registrados. Não há base para declarar agente ativo, fallback executado, Story concluída ou Sprint concluída.
+
+---
+
+# Operational monitoring receipt — Authority Engine
+
+- **Monitor ID:** `AUTH-MONITOR-20260922-0055`
+- **Timestamp verificado:** `2026-09-22 00:55:02 -0300` (terminal)
+- **Escopo:** processos `z.ai`/`zai`/GLM, atividade/evidência dos Agents A/B, Stories/Sprints verificáveis, blockers, próxima ação e fallback.
+- **Regra aplicada:** não editei código, não fiz deploy, migration, publicação, gasto ou alteração de secrets; nenhum processo novo foi iniciado.
+
+## Snapshot operacional
+
+- `ps -ef` e `tasklist`: nenhum processo identificável `z.ai`, `zai` ou `GLM`; processos genéricos Node/Python não foram atribuídos aos agentes por falta de evidência. Não há worker específico visível.
+- `agent-a-progress.md`: mtime `2026-09-21 21:39:40 -0300`; último handoff registra implementação local/fake parcial e `npm run check` com 62 testes PASS/build, aguardando revisão dos Gates S0/S1/S2.
+- `agent-b-progress.md`: mtime `2026-09-21 22:22:39 -0300`; último receipt registra UI/browser smoke/fake E2E local PASS, mas auth server-side, tenant/RBAC/RLS e readback real pendentes.
+- Configuração persistida lida sem exibir secrets: `delegation.provider=openai-codex`; `delegation.model=gpt-5.6-luna-900k`. Não houve probe/dispatch nesta janela.
+
+## Estado objetivo dos agentes
+
+| Agente/track | Estado | Evidência | Causa/impacto | NextAction | NextCheck |
+|---|---|---|---|---|---|
+| Agent A — backend/domain | `waiting` | progress file e handoff existem; evidência local/fake e testes reportados | sem worker vivo; aguarda revisão formal e Gates S0/S1/S2; não há aceite integral | coordenador/revisor GPT-5.6-luna-900k revisar contratos, diff e receipts e registrar decisão de Gate | próximo ciclo do cron ou após revisão formal |
+| Agent B — frontend/UI/UX | `waiting` | progress file e receipts UI/browser/fake E2E existem | sem worker vivo; slices locais não provam auth/tenant/RBAC/RLS/readback real | reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke independente | próximo ciclo do cron ou após readback/QA |
+
+**Contagem objetiva:** `working=0`, `completed=0`, `waiting=2`, `failed=0`, `missing=0`.
+
+## Stories e Sprints verificáveis
+
+- Catálogo `AUTHORITY-ENGINE-STORIES.md`: **46 Stories**, **46 `planned`**, **0 concluídas por status**; a leitura independente por script confirmou esses totais.
+- Stories concluídas verificáveis nesta execução: **0**.
+- Stories pending: **46**.
+- Sprints concluídas verificáveis: **0**.
+- `STATUS.md` mantém núcleo local verificado/parcial, dependências externas em HOLD e produção não verificada; não eleva nenhuma Sprint a concluída.
+- Próxima Story apontada pelo Agent A: `S3-T01 — Research Brief`; **não elegível nesta janela** porque o backlog mestre está planejado e os Gates S0/S1/S2 não foram revisados/liberados.
+- Fallback GPT não foi acionado: não houve falha primária observada nesta janela e não existe Story liberada sem risco de duplicação/ultrapassagem de Gate. A configuração está registrada, mas isso não é atividade de agente.
+
+## Blockers ativos e rota de movimento
+
+### Blocker A — Agent A / revisão formal e Gates S0/S1/S2
+- **Causa:** contratos completos, wiring relacional e aceite formal dos Gates ainda não foram verificados pelo coordenador.
+- **Impacto:** `S3-T01` não pode iniciar como Story liberada; nenhuma Sprint pode ser concluída.
+- **Owner do desbloqueio:** coordenador/revisor GPT-5.6-luna-900k; runtime/infra para wiring relacional quando autorizado.
+- **NextAction:** revisar `09-codigo/src/contracts.ts`, diff, receipts e critérios S0/S1/S2; registrar decisão explícita de Gate.
+- **NextCheck:** próximo ciclo do cron ou imediatamente após revisão formal.
+- **Solução/critério de encerramento:** Gate registrado com evidência e readback aplicável; então encaminhar a Story elegível ao owner, usando `openai-codex/gpt-5.6-luna-900k` se o provider primário falhar.
+
+### Blocker B — Agent B / readback backend e QA independente
+- **Causa:** UI/browser smoke local verificado, porém auth server-side, tenant/RBAC/RLS e `/api/state` real/readback não foram confirmados.
+- **Impacto:** `S1-T04`, `S7-T01` e `S7-T02` não podem receber full Gate nem provar integração real.
+- **Owner do desbloqueio:** coordenador/Agent A para contrato e readback; QA independente para repetição.
+- **NextAction:** reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke com evidência independente.
+- **NextCheck:** próximo ciclo do cron ou após readback disponível.
+- **Solução/critério de encerramento:** readback persistido e QA reproduzido; então classificar o Gate correspondente.
+
+## Decisão operacional desta janela
+
+Não houve dispatch/fallback: iniciar `S3-T01` agora contrariaria o backlog (`execução depende da revisão final e abertura do Sprint 0`) e poderia duplicar trabalho. Os tracks permanecem em `waiting`, não `failed`/`missing`, porque há progress files, handoffs e ações concretas. Nenhuma promessa, build ou auto-relato foi convertido em conclusão.
+
+## Gate de expectativa
+
+A entrega atende ao briefing de monitoramento factual, identifica objetivamente os dois agentes como `waiting`, registra blockers com causa/impacto/owner/nextAction/nextCheck/critério, preserva o fallback configurado e não ultrapassa Gates. O resultado está salvo neste receipt `monitoring.md`.
+
+---
+
+# Operational monitoring receipt — Authority Engine
+
+- **Monitor ID:** `AUTH-MONITOR-20260922-0128`
+- **Timestamp verificado:** `2026-09-22 01:28:27 -0300` (terminal)
+- **Escopo:** processos `z.ai`/`zai`/GLM, atividade/evidência dos Agents A/B, Stories/Sprints verificáveis, blockers, próxima ação e fallback.
+- **Regra aplicada:** não editei código, não fiz deploy, migration, publicação, gasto ou alteração de secrets; nenhum processo novo foi iniciado.
+
+## Snapshot operacional
+
+- `tasklist` e `ps -ef`: nenhum processo identificável `z.ai`, `zai`, `GLM`, Agent A/B ou worker Authority Engine; não há evidência de execução ativa.
+- `agent-a-progress.md`: mtime `2026-09-21 21:39:40 -0300`; último registro verificável: implementação local/fake parcial, 62 testes PASS/build e handoff aguardando revisão/Gates S0/S1/S2.
+- `agent-b-progress.md`: mtime `2026-09-21 22:22:39 -0300`; último registro verificável: contratos UI, browser smoke e fake E2E locais PASS; auth server-side, tenant/RBAC/RLS e readback real pendentes.
+- `STATUS.md`: mtime `2026-09-21 22:24:33 -0300`; núcleo local verificado/parcial, dependências externas em HOLD, produção não verificada.
+- Configuração de fallback registrada nos artefatos anteriores: `delegation.provider=openai-codex`; `delegation.model=gpt-5.6-luna-900k`. Não houve probe/dispatch nesta janela.
+
+## Estado objetivo dos agentes
+
+| Agente/track | Estado | Base objetiva | Causa/impacto | NextAction | NextCheck |
+|---|---|---|---|---|---|
+| Agent A — backend/domain | `waiting` | progress file e handoff existentes; evidência local/fake e testes registrados; sem processo vivo | aguarda revisão formal e Gates S0/S1/S2; não há aceite integral | coordenador/revisor GPT-5.6-luna-900k revisar `contracts.ts`, diff, receipts e decidir Gates | próximo ciclo do cron ou após revisão formal |
+| Agent B — frontend/UI/UX | `waiting` | progress file e receipts UI/browser/fake E2E existentes; sem processo vivo | slices locais não provam auth server-side, tenant/RBAC/RLS ou readback real | reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke independente | próximo ciclo do cron ou após readback/QA |
+
+**Contagem objetiva:** `working=0`, `completed=0`, `waiting=2`, `failed=0`, `missing=0`.
+
+## Stories e Sprints verificáveis
+
+- Catálogo: **46 Stories**, todas com status textual `planned`; **0** com status textual `completed`.
+- Stories concluídas verificáveis nesta execução: **0**.
+- Stories pending: **46**.
+- Sprints concluídas verificáveis: **0**.
+- Próxima Story apontada no progress do Agent A: `S3-T01 — Research Brief`; **não elegível** nesta janela porque o backlog mestre exige revisão final/abertura do Sprint 0 e os Gates S0/S1/S2 não foram liberados.
+- Fallback GPT não foi acionado: não houve falha primária observada nesta janela nem Story liberada sem risco de duplicação/ultrapassagem de Gate.
+
+## Blockers ativos e rota de movimento
+
+### Blocker A — Agent A / revisão formal e Gates S0/S1/S2
+- **Causa:** contratos, wiring relacional e aceite formal ainda não foram verificados pelo coordenador.
+- **Impacto:** `S3-T01` não pode iniciar como Story liberada; nenhuma Sprint pode ser concluída.
+- **Owner:** coordenador/revisor GPT-5.6-luna-900k; runtime/infra para wiring relacional quando autorizado.
+- **NextAction:** revisar `09-codigo/src/contracts.ts`, diff, receipts e critérios S0/S1/S2; registrar decisão explícita de Gate.
+- **NextCheck:** próximo ciclo do cron ou imediatamente após revisão formal.
+- **Solução/critério:** Gate registrado com evidência e readback aplicável; então encaminhar a Story elegível ao owner, usando `openai-codex/gpt-5.6-luna-900k` se o provider primário falhar.
+
+### Blocker B — Agent B / readback backend e QA independente
+- **Causa:** UI/browser smoke local verificado, porém auth server-side, tenant/RBAC/RLS e `/api/state` real/readback não foram confirmados.
+- **Impacto:** `S1-T04`, `S7-T01` e `S7-T02` não podem receber full Gate nem provar integração real.
+- **Owner:** coordenador/Agent A para contrato e readback; QA independente para repetição.
+- **NextAction:** reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke com evidência independente.
+- **NextCheck:** próximo ciclo do cron ou após readback disponível.
+- **Solução/critério:** readback persistido e QA reproduzido; então classificar o Gate correspondente.
+
+## Decisão operacional desta janela
+
+Não houve dispatch/fallback: os agentes não estão working e não existe Story elegível liberada; iniciar `S3-T01` agora contrariaria o backlog e poderia duplicar trabalho. Ambos permanecem `waiting`, não `failed`/`missing`, porque existem progress files, handoffs e ações concretas. Nenhuma promessa, build ou auto-relato foi convertido em conclusão.
+
+A execução atende ao briefing, realiza o monitoramento solicitado e coopera com o objetivo do projeto: estado factual salvo, blockers acionáveis registrados, fallback preservado e nenhum Gate/mutação ultrapassado.
+
+---
+
+# Operational monitoring receipt — Authority Engine
+
+- **Monitor ID:** `OPS-AUTHORITY-CONTINUOUS-MONITOR-20260922-001`
+- **Timestamp verificado:** `2026-09-22 02:01:09 -0300` (terminal)
+- **Escopo:** processos `z.ai`/`zai`, atividade/evidência dos Agents A/B, Stories/Sprints verificáveis, blockers, próxima tarefa elegível e fallback.
+- **Regra aplicada:** não editei código, não fiz deploy, migration, publicação, gasto ou alteração de secrets; nenhum processo novo foi iniciado.
+
+## Snapshot operacional
+
+- Processos: o snapshot `ps -W` não encontrou processos `z.ai`, `zai`, `GLM`, Agent A/B ou worker identificável do Authority Engine.
+- `agent-a-progress.md`: existe; mtime `2026-09-21 21:39:40 -0300`; último registro contém implementação local/fake parcial, 62 testes PASS/build e handoff aguardando revisão/Gates S0/S1/S2. Não há atividade nas últimas ~4h21 desta verificação.
+- `agent-b-progress.md`: existe; mtime `2026-09-21 22:22:39 -0300`; último registro contém contratos UI, browser smoke e fake E2E local PASS, com auth server-side, tenant/RBAC/RLS e readback real pendentes. Não há atividade nas últimas ~3h39 desta verificação.
+- `STATUS.md`: mtime `2026-09-21 22:24:33 -0300`; mantém `LOCAL_IMPLEMENTATION_VERIFIED`, dependências externas em HOLD e produção não verificada.
+- Configuração de fallback registrada nos receipts anteriores: `delegation.provider=openai-codex`, `delegation.model=gpt-5.6-luna-900k`; não houve probe/dispatch nesta janela.
+
+## Estado objetivo dos agentes
+
+| Agente/track | Estado | Evidência | Causa/impacto | NextAction | NextCheck |
+|---|---|---|---|---|---|
+| Agent A — backend/domain | `waiting` | progress file, handoff e testes locais/fake existentes; nenhum worker/processo vivo | aguarda revisão formal e Gates S0/S1/S2; não há aceite integral | coordenador/revisor GPT-5.6-luna-900k revisar `09-codigo/src/contracts.ts`, diff, receipts e decidir os Gates | próximo ciclo do cron ou após revisão formal |
+| Agent B — frontend/UI/UX | `waiting` | progress file, receipts UI/browser/fake E2E existentes; nenhum worker/processo vivo | slices locais não provam auth server-side, tenant/RBAC/RLS ou readback real | reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke independente | próximo ciclo do cron ou após readback/QA |
+
+**Contagem objetiva:** `working=0`, `completed=0`, `waiting=2`, `failed=0`, `missing=0`. Os agentes não são `completed` porque não possuem aceite integral; não são `failed`/`missing` porque os progress files, handoffs e ações concretas existem.
+
+## Stories e Sprints verificáveis
+
+- Contagem independente do catálogo: **46 Stories**, **46 `planned`**, **0 `completed`**.
+- Stories concluídas verificáveis nesta execução: **0**.
+- Stories pending: **46**.
+- Sprints concluídas verificáveis: **0**.
+- Slices locais dos Agents A/B permanecem `slice verificada localmente`/`partial`; não foram promovidas a Story ou Sprint.
+- Próxima Story indicada pelo Agent A: `S3-T01 — Research Brief`; **não elegível** nesta janela porque o backlog mestre exige revisão final/abertura do Sprint 0 e os Gates S0/S1/S2 não foram liberados.
+- Fallback GPT não foi acionado: não houve falha primária observada nesta janela e não há Story liberada sem risco de duplicação/ultrapassagem de Gate. Não existe dispatcher de delegação acionável disponível nesta execução para iniciar um processo com segurança.
+
+## Blockers ativos e rota operacional
+
+### Blocker A — Agent A / revisão formal e Gates S0/S1/S2
+- **Causa:** contratos completos, wiring relacional e aceite formal dos Gates ainda não foram verificados pelo coordenador.
+- **Impacto:** `S3-T01` não pode iniciar como Story liberada; nenhuma Sprint pode ser concluída.
+- **Owner do desbloqueio:** coordenador/revisor GPT-5.6-luna-900k; runtime/infra para wiring relacional quando autorizado.
+- **NextAction:** revisar `09-codigo/src/contracts.ts`, diff, receipts e critérios S0/S1/S2; registrar decisão explícita de Gate.
+- **NextCheck:** próximo ciclo do cron ou imediatamente após revisão formal.
+- **Solução/critério:** Gate registrado com evidência e readback aplicável; então encaminhar a Story elegível ao owner, usando `openai-codex/gpt-5.6-luna-900k` se o provider primário falhar.
+
+### Blocker B — Agent B / readback backend e QA independente
+- **Causa:** UI/browser smoke local verificado, porém auth server-side, tenant/RBAC/RLS e `/api/state` real/readback não foram confirmados.
+- **Impacto:** `S1-T04`, `S7-T01` e `S7-T02` não podem receber full Gate nem provar integração real.
+- **Owner do desbloqueio:** coordenador/Agent A para contrato/readback; QA independente para repetição.
+- **NextAction:** reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke com evidência independente.
+- **NextCheck:** próximo ciclo do cron ou após readback disponível.
+- **Solução/critério:** readback persistido e QA reproduzido; então classificar o Gate correspondente.
+
+## Decisão operacional desta janela
+
+Os dois tracks estão em `waiting`, não `failed`/`missing`. Não houve dispatch/fallback porque nenhum item está liberado pelos Gates e iniciar `S3-T01` agora contrariaria o backlog, podendo duplicar trabalho. Nenhuma promessa, build, auto-relato ou configuração foi convertido em conclusão.
+
+## Gate de expectativa
+
+A entrega atende ao briefing, realiza o monitoramento pedido e coopera com o objetivo do projeto: timestamp, processos, atividade recente, estados objetivos, 46 pending, 0 concluídas, blockers com causa/impacto/owner/nextAction/nextCheck/solução e decisão de fallback ficaram registrados neste receipt.
+
+---
+
+# Operational monitoring receipt — Authority Engine
+
+- **Monitor ID:** `OPS-AUTHORITY-CONTINUOUS-MONITOR-20260922-002`
+- **Timestamp verificado:** `2026-09-22 02:33:57 -0300` (terminal)
+- **Escopo:** processos `z.ai`/`zai`/GLM/worker, atividade/evidência dos Agents A/B, Stories/Sprints verificáveis, blockers, próxima Story elegível e fallback.
+- **Regra aplicada:** não editei código, não fiz deploy, migration, publicação, gasto ou alteração de secrets; nenhum processo novo foi iniciado.
+
+## Snapshot operacional
+
+- `ps -W` falhou com `unknown option -- o` nesta implementação Windows/MSYS; a consulta complementar `tasklist.exe /FO TABLE` não retornou linhas contendo `z.ai`, `zai`, `GLM`, `worker` ou `authority`. Não há processo identificável dos tracks nesta janela.
+- `agent-a-progress.md`: mtime `2026-09-21T21:39:40-03:00`; registra trabalho local/fake parcial, `npm run check` com 62 testes PASS/build e handoff aguardando revisão/Gates S0/S1/S2. Sem atividade recente nesta janela.
+- `agent-b-progress.md`: mtime `2026-09-21T22:22:39-03:00`; registra contratos UI, browser smoke e fake E2E locais PASS, com auth server-side, tenant/RBAC/RLS e readback real pendentes. Sem atividade recente nesta janela.
+- `STATUS.md`: mtime `2026-09-21T22:24:33-03:00`; mantém `LOCAL_IMPLEMENTATION_VERIFIED`, dependências externas em HOLD e produção não verificada.
+
+## Estado objetivo dos agentes
+
+| Agente/track | Estado | Base objetiva | Causa/impacto | NextAction | NextCheck |
+|---|---|---|---|---|---|
+| Agent A — backend/domain | `waiting` | progress file e handoff existem; evidência local/fake e testes registrados; nenhum processo identificável | aguarda revisão formal e Gates S0/S1/S2; não há aceite integral | coordenador/revisor GPT-5.6-luna-900k revisar `09-codigo/src/contracts.ts`, diff, receipts e decidir Gates | próximo ciclo do cron ou após revisão formal |
+| Agent B — frontend/UI/UX | `waiting` | progress file e receipts UI/browser/fake E2E existem; nenhum processo identificável | slices locais não provam auth server-side, tenant/RBAC/RLS ou readback real | reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke independente | próximo ciclo do cron ou após readback/QA |
+
+**Contagem objetiva:** `working=0`, `completed=0`, `waiting=2`, `failed=0`, `missing=0`.
+
+## Stories e Sprints verificáveis
+
+- Catálogo: **46 Stories**, todas com status textual `planned`; **0** com status `completed`.
+- Stories concluídas verificáveis nesta execução: **0**.
+- Stories pending: **46**.
+- Sprints concluídas verificáveis: **0**.
+- Backlog mestre: `planejado; execução depende da revisão final do backlog e abertura do Sprint 0`.
+- Próxima Story indicada pelo Agent A: `S3-T01 — Research Brief`; **não elegível**, pois os Gates S0/S1/S2 não foram revisados/liberados e o backlog não abriu S0.
+- Fallback GPT não foi acionado: não houve falha primária observada e não há Story elegível liberada. Iniciar trabalho agora ultrapassaria Gates e poderia duplicar execução; portanto não há dispatch seguro nesta janela.
+
+## Blockers ativos e rota operacional
+
+### Blocker A — Agent A / revisão formal e Gates S0/S1/S2
+- **Causa:** contratos completos, wiring relacional e aceite formal dos Gates ainda não foram verificados pelo coordenador.
+- **Impacto:** `S3-T01` não pode iniciar como Story liberada; nenhuma Sprint pode ser concluída.
+- **Owner do desbloqueio:** coordenador/revisor GPT-5.6-luna-900k; runtime/infra para wiring relacional quando autorizado.
+- **NextAction:** revisar `09-codigo/src/contracts.ts`, diff, receipts e critérios S0/S1/S2; registrar decisão explícita de Gate.
+- **NextCheck:** próximo ciclo do cron ou imediatamente após revisão formal.
+- **Solução/critério:** Gate com evidência/readback aplicável registrado; então encaminhar a Story elegível ao owner, usando `openai-codex/gpt-5.6-luna-900k` se o provider primário falhar.
+
+### Blocker B — Agent B / readback backend e QA independente
+- **Causa:** UI/browser smoke local verificado, porém auth server-side, tenant/RBAC/RLS e `/api/state` real/readback não foram confirmados.
+- **Impacto:** `S1-T04`, `S7-T01` e `S7-T02` não podem receber full Gate nem provar integração real.
+- **Owner do desbloqueio:** coordenador/Agent A para contrato e readback; QA independente para repetição.
+- **NextAction:** reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke com evidência independente.
+- **NextCheck:** próximo ciclo do cron ou após readback disponível.
+- **Solução/critério:** readback persistido e QA reproduzido; então classificar o Gate correspondente.
+
+## Decisão operacional desta janela
+
+Os dois tracks permanecem `waiting`, não `failed`/`missing`, porque existem progress files, handoffs e ações concretas, mas nenhum worker vivo ou aceite integral. Não houve dispatch/fallback: o plano vigente não liberou nenhuma Story e o próximo trabalho indicado está atrás dos Gates. Nenhuma promessa, build ou auto-relato foi convertido em conclusão.
+
+## Gate de expectativa
+
+A entrega atende ao briefing, realiza a necessidade operacional e coopera com o objetivo do projeto: timestamp, processos, atividade/evidência, classificação objetiva dos dois agentes, 46 Stories pending, 0 concluídas, blockers acionáveis e fallback não acionado sem condição segura foram registrados neste receipt.
+
+---
+
+# Operational monitoring receipt — Authority Engine
+
+- **Monitor ID:** `AUTH-MONITOR-20260922-0307`
+- **Timestamp verificado:** `2026-09-22 03:07:27 -0300` (terminal)
+- **Escopo:** processos `z.ai`/`zai`/GLM/worker, atividade/evidência dos Agents A/B, Stories/Sprints verificáveis, blockers, próxima tarefa elegível e fallback.
+- **Regra aplicada:** não editei código, não fiz deploy, migration, publicação, gasto ou alteração de secrets; nenhum processo novo foi iniciado.
+
+## Snapshot operacional
+
+- `tasklist.exe`: somente processos genéricos `Hermes.exe` foram listados; nenhum processo identificável `z.ai`, `zai`, `GLM` ou worker dos tracks foi encontrado.
+- `ps -ef`: nenhum processo identificável dos tracks; o único match foi o shell transitório da própria verificação. A tentativa anterior de `ps -W -eo` não é suportada nesta implementação MSYS/Windows (`unknown option -- o`); a consulta `tasklist.exe` foi usada como verificação complementar.
+- `agent-a-progress.md`: existe, mtime `2026-09-21 21:39:40 -0300`, sem atividade recente; último conteúdo registra trabalho local/fake parcial, testes/build e handoff aguardando revisão/Gates S0/S1/S2.
+- `agent-b-progress.md`: existe, mtime `2026-09-21 22:22:39 -0300`, sem atividade recente; último conteúdo registra UI/browser/fake E2E local, com auth server-side, tenant/RBAC/RLS e readback real pendentes.
+- `STATUS.md`: mantém `LOCAL_IMPLEMENTATION_VERIFIED`, dependências externas em HOLD e produção não verificada.
+- Fallback GPT: evidência persistida anterior registra `delegation.provider=openai-codex` e `delegation.model=gpt-5.6-luna-900k`; não houve dispatch/probe nesta janela. Não foi repetido por não haver Story elegível liberada.
+
+## Estado objetivo dos agentes
+
+| Agente/track | Estado | Base objetiva | Causa/impacto | NextAction | NextCheck |
+|---|---|---|---|---|---|
+| Agent A — backend/domain | `waiting` | progress file existente, handoff e evidência local/fake; nenhum worker/processo identificável | aguarda revisão formal e Gates S0/S1/S2; não há aceite integral | coordenador/revisor GPT-5.6-luna-900k revisar `09-codigo/src/contracts.ts`, diff, receipts e registrar decisão dos Gates | próximo ciclo do cron ou após revisão formal |
+| Agent B — frontend/UI/UX | `waiting` | progress file existente, receipts UI/browser/fake E2E; nenhum worker/processo identificável | slices locais não provam auth server-side, tenant/RBAC/RLS ou readback real | reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke independente | próximo ciclo do cron ou após readback/QA |
+
+**Contagem objetiva:** `working=0`, `completed=0`, `waiting=2`, `failed=0`, `missing=0`.
+
+## Stories e Sprints verificáveis
+
+- Catálogo: **46 Stories**, todas com status textual `planned`; **0** com status `completed`.
+- Stories concluídas verificáveis nesta execução: **0**.
+- Stories pending: **46**.
+- Sprints concluídas verificáveis: **0**.
+- Slices locais dos Agents A/B permanecem `slice verificada localmente`/`partial`; não foram promovidas a Story ou Sprint.
+- Próxima Story indicada pelo Agent A: `S3-T01 — Research Brief`; **não elegível** porque o backlog mestre permanece planejado e os Gates S0/S1/S2 não foram revisados/liberados.
+- Fallback não acionado: não houve falha primária observada nesta janela e não existe Story liberada; iniciar processo agora poderia ultrapassar Gate ou duplicar trabalho.
+
+## Blockers ativos e rota operacional
+
+### Blocker A — Agent A / revisão formal e Gates S0/S1/S2
+- **Causa:** contratos completos, wiring relacional e aceite formal dos Gates ainda não foram verificados pelo coordenador.
+- **Impacto:** `S3-T01` não pode iniciar como Story liberada; nenhuma Sprint pode ser concluída.
+- **Owner do desbloqueio:** coordenador/revisor GPT-5.6-luna-900k; runtime/infra para wiring relacional quando autorizado.
+- **NextAction:** revisar contratos, diff, receipts e critérios S0/S1/S2; registrar decisão explícita de Gate.
+- **NextCheck:** próximo ciclo ou imediatamente após revisão formal.
+- **Solução/critério:** Gate com evidência/readback aplicável registrado; então encaminhar a Story elegível ao owner, usando `openai-codex/gpt-5.6-luna-900k` se o provider primário falhar.
+
+### Blocker B — Agent B / readback backend e QA independente
+- **Causa:** UI/browser smoke local verificado, porém auth server-side, tenant/RBAC/RLS e `/api/state` real/readback não foram confirmados.
+- **Impacto:** `S1-T04`, `S7-T01` e `S7-T02` não podem receber full Gate nem provar integração real.
+- **Owner do desbloqueio:** coordenador/Agent A para contrato e readback; QA independente para repetição.
+- **NextAction:** reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke com evidência independente.
+- **NextCheck:** próximo ciclo ou após readback disponível.
+- **Solução/critério:** readback persistido e QA reproduzido; então classificar o Gate correspondente.
+
+## Decisão operacional desta janela
+
+Os dois tracks permanecem `waiting`, não `failed`/`missing`, porque existem progress files, handoffs e ações concretas, mas nenhum worker vivo ou aceite integral. Não houve dispatch/fallback: o plano vigente não liberou nenhuma Story. Nenhuma promessa, build ou auto-relato foi convertido em conclusão.
+
+## Gate de expectativa
+
+A execução atende ao briefing, realiza o monitoramento solicitado e coopera com o objetivo do projeto: timestamp, processos, atividade/evidência, estados objetivos, 46 Stories pending, 0 concluídas, blockers acionáveis e decisão de não despachar sem Story elegível estão registrados neste receipt.
+
+---
+
+## Gate de expectativa
+
+A entrega atende ao briefing, realiza a necessidade operacional e coopera com o objetivo do projeto: timestamp, processos, atividade/evidência, classificação objetiva dos dois agentes, 46 Stories pending, 0 concluídas, blockers acionáveis e fallback não acionado sem condição segura foram registrados neste receipt.
+
+---
+
+# Operational monitoring receipt — Authority Engine
+
+- **Monitor ID:** `OPS-AUTHORITY-CONTINUOUS-MONITOR-20260922-003`
+- **Timestamp verificado:** `2026-09-22 04:15:20 -0300` (terminal)
+- **Escopo:** processos `z.ai`/`zai`, atividade/evidência recente dos Agents A/B, Stories/Sprints verificáveis, blockers, próxima tarefa e fallback.
+- **Regra aplicada:** não editei código, não fiz deploy, migration, publicação, gasto ou alteração de secrets; nenhum processo novo foi iniciado.
+
+## Snapshot operacional
+
+- `ps -W`/`tasklist.exe`: nenhum processo identificável `z.ai`, `zai`, `GLM` ou worker dos tracks. Foram observados processos genéricos `Hermes.exe`, `python.exe` e `node.exe`, sem evidência suficiente para atribuí-los aos Agents A/B; não foram contados como atividade.
+- `agent-a-progress.md`: existe, mtime `2026-09-21 21:39:40 -0300`; último registro verificável: track backend/domain parcial, `npm run check` com 62 testes PASS/build, handoff aguardando revisão/Gates S0/S1/S2. Sem atividade recente.
+- `agent-b-progress.md`: existe, mtime `2026-09-21 22:22:39 -0300`; último registro verificável: slices UI/browser/fake E2E locais PASS, com auth server-side, tenant/RBAC/RLS e readback real pendentes. Sem atividade recente.
+- `STATUS.md`: `LOCAL_IMPLEMENTATION_VERIFIED`, núcleo local verificado/parcial, dependências externas em HOLD e produção não verificada.
+- Configuração de fallback registrada nos artefatos anteriores: `delegation.provider=openai-codex`, `delegation.model=gpt-5.6-luna-900k`. Não houve falha primária/probe/dispatch nesta janela.
+
+## Estado objetivo dos agentes
+
+| Agente/track | Estado | Base objetiva | Causa/impacto | NextAction | NextCheck |
+|---|---|---|---|---|---|
+| Agent A — backend/domain | `waiting` | progress file, handoff e evidência local/fake; nenhum worker identificado | aguarda revisão formal e Gates S0/S1/S2; não possui aceite integral | coordenador/revisor GPT-5.6-luna-900k revisar contratos, diff e receipts e registrar decisão dos Gates | próximo ciclo do cron ou após revisão formal |
+| Agent B — frontend/UI/UX | `waiting` | progress file, receipts UI/browser/fake E2E; nenhum worker identificado | slices locais não provam auth server-side, tenant/RBAC/RLS ou readback real | reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke independente | próximo ciclo do cron ou após readback/QA |
+
+**Contagem objetiva:** `working=0`, `completed=0`, `waiting=2`, `failed=0`, `missing=0`.
+
+## Stories e Sprints verificáveis
+
+- Catálogo: **46 Stories**, **46 `planned`**, **0 `completed`**.
+- Stories concluídas verificáveis nesta execução: **0**; Stories pending: **46**.
+- Sprints concluídas verificáveis: **0**.
+- Slices locais dos Agents A/B permanecem `slice verificada localmente`/`partial`; não foram promovidas a Story ou Sprint.
+- Próxima Story indicada pelo Agent A: `S3-T01 — Research Brief`; **não elegível** porque o backlog mestre permanece planejado e exige revisão final/abertura do Sprint 0, além dos Gates S0/S1/S2.
+- Fallback GPT **não acionado**: não houve falha primária observada e não existe Story liberada; iniciar agora ultrapassaria Gate ou poderia duplicar trabalho.
+
+## Blockers ativos e rota de movimento
+
+### Blocker A — Agent A / revisão formal e Gates S0/S1/S2
+- **Causa:** contratos, wiring relacional e aceite formal dos Gates ainda não foram verificados pelo coordenador.
+- **Impacto:** `S3-T01` não pode iniciar como Story liberada; nenhuma Sprint pode ser concluída.
+- **Owner do desbloqueio:** coordenador/revisor GPT-5.6-luna-900k; runtime/infra para wiring relacional quando autorizado.
+- **NextAction:** revisar contratos, diff, receipts e critérios S0/S1/S2; registrar decisão explícita de Gate.
+- **NextCheck:** próximo ciclo ou imediatamente após revisão formal.
+- **Solução/critério:** Gate com evidência/readback aplicável registrado; então encaminhar a Story elegível ao owner, usando `openai-codex/gpt-5.6-luna-900k` se o provider primário falhar.
+
+### Blocker B — Agent B / readback backend e QA independente
+- **Causa:** UI/browser smoke local verificado, porém auth server-side, tenant/RBAC/RLS e `/api/state` real/readback não foram confirmados.
+- **Impacto:** `S1-T04`, `S7-T01` e `S7-T02` não podem receber full Gate nem provar integração real.
+- **Owner do desbloqueio:** coordenador/Agent A para contrato/readback; QA independente para repetição.
+- **NextAction:** reconciliar `/api/state`, auth/tenant/RBAC e repetir QA/browser smoke com evidência independente.
+- **NextCheck:** próximo ciclo ou após readback disponível.
+- **Solução/critério:** readback persistido e QA reproduzido; então classificar o Gate correspondente.
+
+## Decisão operacional desta janela
+
+Os dois tracks permanecem `waiting`, não `failed`/`missing`, porque existem progress files, handoffs e ações concretas, mas nenhum worker vivo ou aceite integral. Não houve dispatch/fallback: o plano vigente não liberou nenhuma Story. Nenhuma promessa, build ou auto-relato foi convertido em conclusão.
+
+## Gate de expectativa
+
+A entrega atende ao briefing, realiza a necessidade operacional e coopera com o objetivo do projeto: timestamp, processos, atividade/evidência, classificação objetiva dos dois agentes, 46 Stories pending, 0 concluídas, blockers acionáveis e fallback não acionado sem condição segura estão registrados neste receipt.
