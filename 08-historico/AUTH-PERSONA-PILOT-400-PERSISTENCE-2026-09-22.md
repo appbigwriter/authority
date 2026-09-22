@@ -72,9 +72,21 @@ build: PASS
 git diff --check: PASS
 ```
 
-## Pendente para concluir
+## Tentativa de aplicação da migration
 
-- Deploy do Authority com essas alterações.
-- Readback de `/api/readiness` autenticado.
-- Readback SQL do schema/tabelas/permissões no banco remoto.
-- Aplicar migration somente se o readback confirmar ausência, com backup/rollback.
+- DDL oficial: `001-custom-authorityengine-operational.sql` + `002-registry-gateway-audit.sql`.
+- Execução preparada em transação via driver `pg`, com readback de 21 tabelas e policies.
+- Resultado: **rollback automático**, sem alteração no banco.
+- Causa: `DATABASE_URL` local contém referência/placeholder de Secret Manager; a conexão tentou resolver host literal `base` e falhou com `getaddrinfo ENOTFOUND base`.
+- `POSTGRES_PASS` não faz parte do contrato do Authority e não é lida pelo código; a credencial PostgreSQL é transportada exclusivamente em `DATABASE_URL` como DSN completa.
+## Bloqueio remoto confirmado
+
+A aplicação remota alcança um PostgreSQL, mas a relação não existe. O ambiente precisa receber uma DSN real e acessível, não `<secret-manager:...>`/placeholder. O documento de Control Tower define a infraestrutura esperada como Supabase VPS, database `postgres`, host `76.13.168.223`, porta `15432`, com credencial resolvida server-side.
+
+## Próxima ação operacional
+
+1. No serviço `authority` do EasyPanel, corrigir a referência/injeção `DATABASE_URL` pelo Secret Manager.
+2. Fazer readback sem expor valor: host/porta/database não-placeholder e schema `custom_authorityengine`.
+3. Executar `001` e `002` por executor autorizado/SQL Editor, em transação.
+4. Confirmar 21 tabelas + policies e reiniciar o Authority.
+5. Repetir `/api/readiness` e `/api/state` com Bearer.
