@@ -1349,3 +1349,50 @@ Os dois tracks permanecem `waiting`, não `failed`/`missing`, porque os progress
 - Não há Story elegível para fallback sem ultrapassar Gates; nenhuma próxima tarefa foi despachada.
 - Gate de expectativa: atende ao briefing, realiza o que o usuário precisa e coopera com o objetivo do projeto; o snapshot é factual, não promove promessa/build/slice local a conclusão e preserva os Gates.
 - Aprendizado aplicado: no Windows, usar `tasklist.exe` como verificação primária; manter `waiting` quando há artefato e rota operacional concreta; não acionar fallback sem Story elegível ou falha primária.
+
+---
+
+# Operational monitoring receipt — Authority Engine
+
+- **Monitor ID:** `OPS-AUTHORITY-STORY-MONITOR-20260922-CRON-004`
+- **Timestamp:** `2026-09-22 17:25:40 -0300`
+- **Escopo:** PRD/backlog, catálogo de Stories, STATUS, processos z.ai/GLM5.2, diffs, handoffs/receipts, Story IDs, testes e blockers dos worktrees `authority-tasklist-track-a` e `authority-tasklist-track-b`.
+- **Regra aplicada:** monitoramento read-only; nenhum código, deploy, migration, publicação, gasto ou secret alterado/executado.
+
+## Snapshot verificável
+
+- `tasklist.exe` não encontrou processo identificável `z.ai`, `zai` ou `GLM5.2`; há processos genéricos `node.exe` e Hermes, mas sem identidade atribuível aos tracks. Não há worker z.ai/GLM5.2 verificável.
+- Catálogo `02-prd/stories/AUTHORITY-ENGINE-STORIES.md`: **46 Stories únicas**, todas `planned`; nenhuma recebeu promoção.
+- Track A: diff novo limitado a documentação de `S0-T01` (`S0-T01-reconciliation.md`, `track-a-handoff.md`, `track-a-correction-receipt.md`). O handoff declara `partial_pending_gate`, teste “não aplicável” e aprovação de Sergio pendente.
+- Track B: nenhum diff novo; HEAD `6623717` apenas contém diretórios de worktree; não há handoff/receipt novo atribuível a uma Story.
+- `git diff --check`: Track B sem alterações; Track A emitiu três avisos de trailing whitespace no novo `S0-T01-reconciliation.md`. Isso não foi corrigido nesta janela read-only e mantém uma pendência de higiene do diff.
+
+## Testes e classificação
+
+| Track | Comando | Resultado | Impacto na contagem |
+|---|---|---|---|
+| A | `09-codigo/npm run check` | build OK; **66/66 testes PASS** | não promove Story: o diff é documental e `S0-T01` declara teste não aplicável; Gate/revisão final pendentes |
+| B | `09-codigo/npm run check` | **exit 1** antes dos testes: `tsc` não reconhecido | interrupção real; nenhuma Story promove; blocker permanece |
+
+**Stories concluídas verificáveis nesta janela: 0.** Para a contagem exigida, nenhuma Story tem simultaneamente diff novo, teste executado aplicável, receipt/handoff, e revisão independente verificável com aceite/Gate. **S0-T01 permanece pending/partial_pending_gate**; nenhum build, fixture, teste genérico ou auto-relato foi contado como conclusão. **Sprints verificavelmente completas: 0.**
+
+## Blockers e rota operacional
+
+### Track A — S0-T01 / Gate pendente
+- **Causa:** matriz reconciliada localmente, mas o próprio handoff mantém `partial_pending_gate`; aprovação/revisão final de Sergio e receipt final de aceite não existem.
+- **Owner:** Sergio para o Gate; David/coordenador para retestar e registrar a decisão.
+- **NextAction:** Sergio revisar/aprovar ou devolver `S0-T01`; David registrar o receipt final e só então reavaliar a Story.
+- **NextCheck:** após a decisão de Sergio.
+- **Critério de encerramento:** aprovação explícita, receipt final e revisão independente reproduzível do aceite.
+
+### Track B — ambiente de teste interrompido
+- **Causa:** `npm run check` falha antes da suíte porque `tsc` não está disponível no worktree.
+- **Owner:** David/coordenador para restaurar dependências do worktree; provider/agente não é considerado ativo.
+- **NextAction:** instalar/restaurar dependências de `09-codigo` no worktree B e repetir `npm run check`; não promover Stories antes disso.
+- **NextCheck:** próximo ciclo ou após a restauração do `tsc`.
+- **Critério de encerramento:** check executado com resultado reproduzível, diff/Story ID, handoff/receipt e revisão independente.
+
+## Conclusão factual
+
+- **46 pending/planned; 0 Stories concluídas verificáveis; 0 Sprints concluídas verificáveis; 1 interrupção nova (Track B `tsc` ausente); 0 processos z.ai/GLM5.2 atribuíveis.**
+- Gate de expectativa: a entrega atende ao briefing de monitoramento factual, não promove a fatia documental de Track A nem o build local de Track A a Story concluída, e deixa a rota operacional explícita para ambos os blockers.

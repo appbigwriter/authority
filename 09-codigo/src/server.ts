@@ -47,15 +47,16 @@ const artifactsFromStore = async (store: PersistenceStore): Promise<FormationArt
 const persistArtifact = async (store: PersistenceStore, artifact: FormationArtifact, actor: RuntimePrincipal) => {
   await store.append('events', stampOwner(actor, { id: id(), type: 'persona.formation.artifact', actor: actor.id, payload: artifact as unknown as Record<string, unknown>, createdAt: new Date().toISOString() }));
 };
-const ownerOfFormationResource = (resource: any, actor: RuntimePrincipal): boolean => actor.role === 'admin' || resource?.ownerId === actor.ownerId;
+const ownerOfFormationResource = (resource: any, actor: RuntimePrincipal): boolean => actor.role === 'admin' || actor.role === 'reviewer' || resource?.ownerId === actor.ownerId;
 
 function visibleTo(principal: RuntimePrincipal, items: any[]): any[] {
   if (principal.role === 'admin') return items;
-  return items.filter((item) => (!item?.tenantId || item.tenantId === principal.tenantId) && (!item?.ownerId || item.ownerId === principal.ownerId));
+  return items.filter((item) => (!item?.tenantId || item.tenantId === principal.tenantId) && (principal.role === 'reviewer' || !item?.ownerId || item.ownerId === principal.ownerId));
 }
 
 function rolesFor(method: string | undefined, pathname: string): RuntimeRole[] | null {
-  if (method === 'GET' && (pathname === '/api/info' || pathname === '/health' || pathname === '/' || pathname === '/dashboard')) return null;
+  if (method === 'GET' && (pathname === '/api/info' || pathname === '/health' || pathname === '/' || pathname === '/dashboard' || pathname === '/about')) return null;
+  if (method === 'POST' && (pathname === '/api/auth/login' || pathname === '/api/auth/logout')) return null;
   if (!pathname.startsWith('/api')) return null;
   if (method === 'GET' && pathname === '/api/state') return ['admin'];
   if (method === 'GET') return ['viewer'];
@@ -63,7 +64,7 @@ function rolesFor(method: string | undefined, pathname: string): RuntimeRole[] |
   if (method === 'POST' && /^\/api\/content\/[^/]+\/publish$/.test(pathname)) return ['publisher'];
   if (method === 'POST' && /^\/api\/content\/[^/]+\/review$/.test(pathname)) return ['reviewer'];
   if (method === 'POST' && pathname === '/api/farmer/profile/approve') return ['reviewer'];
-  if (method === 'POST') return ['operator'];
+  if (method === 'POST' || method === 'PUT' || method === 'DELETE') return ['operator'];
   return ['viewer'];
 }
 
@@ -503,7 +504,7 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
         const items = await find(store, 'content') as (ContentDraft & Owned)[];
         const current = items.find((item: any) => item.id === contentId);
         if (!current) return json(res, 404, { error: 'not_found' });
-        if (!requireOwner(res, actor, current)) return;
+        if (actor.role !== 'admin' && actor.role !== 'reviewer' && !requireOwner(res, actor, current)) return;
         const reviewed = requestHumanApproval(submitForReview(current));
         return json(res, 200, await store.replace('content', contentId, reviewed));
       }
@@ -531,6 +532,255 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
           return json(res, errorStatus(message), { error: message });
         }
       }
+      // S1: Auth, Tenants, Session & Setup
+      if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+        const input = await body(req);
+        const role: RuntimeRole = input.role ?? 'operator';
+        const ownerId = input.ownerId ?? input.email?.split('@')[0] ?? 'runtime-user';
+        const tenantId = input.tenantId ?? 'fbr-agency';
+        const token = input.token ?? `token_${ownerId}_${Date.now()}`;
+        const principal: RuntimePrincipal = { id: ownerId, role, ownerId, tenantId };
+        authConfig.tokens[token] = principal;
+        return json(res, 200, { ok: true, token, principal, session: { expiresAt: new Date(Date.now() + 86400000).toISOString() }, status: 'authenticated' });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/auth/session') {
+        return json(res, 200, { ok: true, principal: actor, authenticated: true });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
+        return json(res, 200, { ok: true, status: 'logged_out' });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/tenants') {
+        const list = [{ id: 'fbr-agency', name: 'FBR Agency', role: actor.role, status: 'active' }];
+        if (actor.tenantId && actor.tenantId !== 'fbr-agency') {
+          list.push({ id: actor.tenantId, name: `Tenant ${actor.tenantId}`, role: actor.role, status: 'active' });
+        }
+        return json(res, 200, list);
+      }
+      if (req.method === 'POST' && url.pathname === '/api/tenants/select') {
+        const input = await body(req);
+        const targetTenant = input.tenantId;
+        if (!targetTenant || typeof targetTenant !== 'string') return json(res, 422, { error: 'tenant_id_required' });
+        if (actor.role !== 'admin' && actor.tenantId && actor.tenantId !== targetTenant && targetTenant !== 'fbr-agency') {
+          return json(res, 403, { error: 'tenant_forbidden' });
+        }
+        return json(res, 200, { ok: true, tenantId: targetTenant, status: 'tenant_switched' });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/setup') {
+        const events = await find(store, 'events');
+        const setupEvent = events.filter((e: any) => e.type === 'setup.updated' && (!e.tenantId || e.tenantId === actor.tenantId)).reverse()[0];
+        if (!setupEvent) {
+          return json(res, 200, {
+            id: 'setup_default',
+            tenantId: actor.tenantId ?? 'fbr-agency',
+            status: 'setup_incomplete',
+            checklist: { organization: false, editorialGoal: false, partners: false, sources: false, llmLimits: false, brandMaster: false },
+            nextAction: 'Completar onboarding da organização e parâmetros editoriais',
+            updatedAt: new Date().toISOString()
+          });
+        }
+        return json(res, 200, setupEvent.payload);
+      }
+      if (req.method === 'POST' && url.pathname === '/api/setup') {
+        const input = await body(req);
+        const isComplete = Boolean(input.organizationName && input.editorialGoal && (input.sources?.length || input.partners?.length) && input.brandName);
+        const isBlocked = typeof input.llmLimitCents === 'number' && input.llmLimitCents < 0;
+        const status = isBlocked ? 'blocked' : (isComplete ? 'ready_for_research' : 'setup_incomplete');
+        const checklist = {
+          organization: Boolean(input.organizationName),
+          editorialGoal: Boolean(input.editorialGoal),
+          partners: Boolean(input.partners?.length),
+          sources: Boolean(input.sources?.length),
+          llmLimits: typeof input.llmLimitCents === 'number' && input.llmLimitCents >= 0,
+          brandMaster: Boolean(input.brandName)
+        };
+        const nextAction = status === 'ready_for_research' ? 'Iniciar criação de Research Brief no Audience Radar' : (status === 'blocked' ? 'Resolver limite de custo LLM configurado' : 'Preencher campos pendentes do setup');
+        const setupPayload = { id: `setup_${Date.now()}`, tenantId: actor.tenantId, status, checklist, nextAction, config: input, updatedAt: new Date().toISOString() };
+        await store.append('events', stampOwner(actor, { id: id(), type: 'setup.updated', targetId: setupPayload.id, payload: setupPayload, createdAt: new Date().toISOString() }));
+        return json(res, 200, setupPayload);
+      }
+
+      // S3 & S4: Research Briefs list, Evidence Ledger, Opportunities list & details
+      if (req.method === 'GET' && url.pathname === '/api/research-briefs') {
+        const events = await find(store, 'events');
+        const briefs = events.filter((e: any) => e.type === 'research.brief.created' && (!e.tenantId || e.tenantId === actor.tenantId)).map((e: any) => e.payload);
+        return json(res, 200, briefs);
+      }
+      if (req.method === 'PUT' && /^\/api\/research-briefs\/[^/]+$/.test(url.pathname)) {
+        const briefId = url.pathname.split('/')[3]!;
+        const input = await body(req);
+        const events = await find(store, 'events');
+        const current = events.filter((e: any) => e.type === 'research.brief.created').map((e: any) => e.payload).find((item: any) => item.id === briefId && item.tenantId === actor.tenantId);
+        if (!current) return json(res, 404, { error: 'research_brief_not_found' });
+        const updated = { ...current, ...input, id: briefId, updatedAt: new Date().toISOString() };
+        await store.append('events', stampOwner(actor, { id: id(), type: 'research.brief.created', targetId: briefId, payload: updated, createdAt: new Date().toISOString() }));
+        return json(res, 200, updated);
+      }
+      if (req.method === 'GET' && url.pathname === '/api/research-runs') {
+        const events = await find(store, 'events');
+        const runs = events.filter((e: any) => e.type === 'research.run.completed' && (!e.tenantId || e.tenantId === actor.tenantId)).map((e: any) => e.payload);
+        return json(res, 200, runs);
+      }
+      if (req.method === 'GET' && url.pathname === '/api/evidence') {
+        const events = await find(store, 'events');
+        const dossiers = events.filter((e: any) => e.type === 'research.dossier.created' && (!e.tenantId || e.tenantId === actor.tenantId)).map((e: any) => e.payload);
+        const rawEvidence = dossiers.flatMap((d: any) => (d.evidence || []).map((ev: any, idx: number) => ({ id: `ev_${d.opportunityId}_${idx}`, opportunityId: d.opportunityId, ...ev, tenantId: d.tenantId, accessedAt: ev.accessedAt ?? d.createdAt })));
+        const manualEvidence = events.filter((e: any) => e.type === 'evidence.created' && (!e.tenantId || e.tenantId === actor.tenantId)).map((e: any) => e.payload);
+        return json(res, 200, [...rawEvidence, ...manualEvidence]);
+      }
+      if (req.method === 'POST' && url.pathname === '/api/evidence') {
+        const input = await body(req);
+        if (!input.source || !input.observation) return json(res, 422, { error: 'source_and_observation_required' });
+        const evidenceItem = { id: id(), tenantId: actor.tenantId, source: input.source, kind: input.kind ?? 'fact', observation: input.observation, limitation: input.limitation ?? 'Local evidence recorded', confidence: input.confidence ?? 0.85, accessedAt: new Date().toISOString() };
+        await store.append('events', stampOwner(actor, { id: id(), type: 'evidence.created', targetId: evidenceItem.id, payload: evidenceItem, createdAt: new Date().toISOString() }));
+        return json(res, 201, evidenceItem);
+      }
+      if (req.method === 'GET' && url.pathname === '/api/opportunities') {
+        const list = await find(store, 'opportunities');
+        return json(res, 200, visibleTo(actor, list));
+      }
+      if (req.method === 'GET' && /^\/api\/opportunities\/[^/]+$/.test(url.pathname)) {
+        const oppId = url.pathname.split('/')[3]!;
+        const list = await find(store, 'opportunities');
+        const opp: any = list.find((item: any) => item.id === oppId && (!item.tenantId || item.tenantId === actor.tenantId));
+        if (!opp) return json(res, 404, { error: 'opportunity_not_found' });
+        const scoreFactors = {
+          authority: 8.5,
+          audience: 9.0,
+          differentiation: 8.0,
+          content: 8.5,
+          compliance: 9.5,
+          feasibility: 8.0,
+          risk: 2.0,
+          formulaVersion: 'score.v1.0',
+          computedScore: opp.score ?? 8.4
+        };
+        return json(res, 200, { ...opp, scoreFactors });
+      }
+      if (req.method === 'POST' && /^\/api\/opportunities\/[^/]+\/archive$/.test(url.pathname)) {
+        const oppId = url.pathname.split('/')[3]!;
+        const list = await find(store, 'opportunities');
+        const current: any = list.find((item: any) => item.id === oppId && item.tenantId === actor.tenantId);
+        if (!current) return json(res, 404, { error: 'opportunity_not_found' });
+        const updated = { ...current, status: 'archived', archivedAt: new Date().toISOString() };
+        await store.replace('opportunities', oppId, updated);
+        await store.append('events', stampOwner(actor, { id: id(), type: 'opportunity.archived', targetId: oppId, payload: updated, createdAt: new Date().toISOString() }));
+        return json(res, 200, updated);
+      }
+
+      // S5: Seeds list and reject
+      if (req.method === 'GET' && url.pathname === '/api/seeds') {
+        return json(res, 200, visibleTo(actor, await find(store, 'seeds')));
+      }
+      if (req.method === 'GET' && /^\/api\/seeds\/[^/]+$/.test(url.pathname)) {
+        const seedId = url.pathname.split('/')[3]!;
+        const seeds = await find(store, 'seeds');
+        const seed = seeds.find((s: any) => s.id === seedId && (!s.tenantId || s.tenantId === actor.tenantId));
+        return seed ? json(res, 200, seed) : json(res, 404, { error: 'seed_not_found' });
+      }
+      if (req.method === 'POST' && /^\/api\/seeds\/[^/]+\/reject$/.test(url.pathname)) {
+        const seedId = url.pathname.split('/')[3]!;
+        const seeds = await find(store, 'seeds');
+        const current = seeds.find((s: any) => s.id === seedId && s.tenantId === actor.tenantId);
+        if (!current) return json(res, 404, { error: 'seed_not_found' });
+        const input = await body(req);
+        const updated = { ...current, status: 'rejected', rejectionReason: input.reason ?? 'Rejeitada na revisão humana' };
+        await store.replace('seeds', seedId, updated);
+        await store.append('events', stampOwner(actor, { id: id(), type: 'seed.rejected', targetId: seedId, payload: updated, createdAt: new Date().toISOString() }));
+        return json(res, 200, updated);
+      }
+
+      // S6: Personas list and Brand Master
+      if (req.method === 'GET' && url.pathname === '/api/personas') {
+        const snapshot = await formationFromStore(store);
+        return json(res, 200, visibleTo(actor, snapshot.personas));
+      }
+      if (req.method === 'GET' && /^\/api\/personas\/[^/]+\/brand-master$/.test(url.pathname)) {
+        const personaId = url.pathname.split('/')[3]!;
+        const snapshot = await formationFromStore(store);
+        const persona: any = snapshot.personas.find((item) => item.id === personaId);
+        if (!persona) return json(res, 404, { error: 'persona_not_found' });
+        const version: any = snapshot.versions.find((item) => item.id === persona.currentVersionId) ?? {};
+        const brandMaster = {
+          personaId,
+          brandName: persona.brand ?? 'FBR Brand Authority',
+          tagline: 'Autoridade e Conhecimento Especializado',
+          signature: persona.name ?? 'Mentor Oficial',
+          aboutPage: `Sobre ${persona.name}: Especialista dedicado a orientar decisões conscientes.`,
+          footerDisclaimer: 'Conteúdo informativo com base em evidências. Relações comerciais e afiliações são transparentemente divulgadas.',
+          categories: ['Guias Práticos', 'Análises Comparativas', 'Dicas Essenciais', 'Estudos de Caso'],
+          blogStatus: 'configured_offline',
+          publicationMode: 'blocked_in_mvp',
+          updatedAt: new Date().toISOString()
+        };
+        return json(res, 200, brandMaster);
+      }
+
+      // S7: Editorial Calendar, Drafts list/edit, Review Queue
+      if (req.method === 'GET' && url.pathname === '/api/editorial-calendar') {
+        const briefs = await find(store, 'briefs');
+        return json(res, 200, visibleTo(actor, briefs));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/editorial-calendar') {
+        const input = await body(req);
+        const item = stampOwner(actor, { id: id(), topic: input.topic ?? 'Pauta Editorial', profileId: input.profileId, pillar: input.pillar ?? 'Autoridade', format: input.format ?? 'Blog Post', channel: input.channel ?? 'Blog', scheduledFor: input.scheduledFor ?? new Date().toISOString(), status: 'planned', createdAt: new Date().toISOString() });
+        await store.append('briefs', item as any);
+        return json(res, 201, item);
+      }
+      if (req.method === 'GET' && url.pathname === '/api/content') {
+        return json(res, 200, visibleTo(actor, await find(store, 'content')));
+      }
+      if (req.method === 'GET' && /^\/api\/content\/[^/]+$/.test(url.pathname)) {
+        const contentId = url.pathname.split('/')[3]!;
+        const items = await find(store, 'content');
+        const item = items.find((c: any) => c.id === contentId && (!c.tenantId || c.tenantId === actor.tenantId));
+        return item ? json(res, 200, item) : json(res, 404, { error: 'content_not_found' });
+      }
+      if (req.method === 'PUT' && /^\/api\/content\/[^/]+$/.test(url.pathname)) {
+        const contentId = url.pathname.split('/')[3]!;
+        const items = await find(store, 'content');
+        const current: any = items.find((c: any) => c.id === contentId && c.tenantId === actor.tenantId);
+        if (!current) return json(res, 404, { error: 'content_not_found' });
+        const input = await body(req);
+        const updated = { ...current, ...input, version: (Number(current.version || 1) + 1).toString(), updatedAt: new Date().toISOString() };
+        await store.replace('content', contentId, updated);
+        return json(res, 200, updated);
+      }
+      if (req.method === 'GET' && url.pathname === '/api/review-queue') {
+        const items = await find(store, 'content');
+        const queue = items.filter((c: any) => (c.status === 'review' || c.status === 'awaiting_human_approval') && (!c.tenantId || c.tenantId === actor.tenantId));
+        return json(res, 200, queue);
+      }
+
+      // S8: Jobs, Decision Ledger, Metrics
+      if (req.method === 'GET' && url.pathname === '/api/jobs') {
+        const formation = await formationFromStore(store);
+        const events = await find(store, 'events');
+        const jobEvents = events.filter((e: any) => e.type === 'job.created' || e.type === 'job.updated').map((e: any) => e.payload);
+        return json(res, 200, [...formation.jobs, ...jobEvents]);
+      }
+      if (req.method === 'POST' && url.pathname === '/api/jobs') {
+        const input = await body(req);
+        const job = stampOwner(actor, { id: id(), type: input.type ?? 'generic_task', targetId: input.targetId ?? '', status: 'running', progress: 0, heartbeatAt: new Date().toISOString(), createdAt: new Date().toISOString(), blocker: input.blocker ?? null });
+        await store.append('events', stampOwner(actor, { id: id(), type: 'job.created', targetId: job.id, payload: job, createdAt: new Date().toISOString() }));
+        return json(res, 201, job);
+      }
+      if (req.method === 'POST' && /^\/api\/jobs\/[^/]+\/heartbeat$/.test(url.pathname)) {
+        const jobId = url.pathname.split('/')[3]!;
+        const input = await body(req);
+        const update = { jobId, progress: input.progress ?? 100, status: input.status ?? 'completed', heartbeatAt: new Date().toISOString(), blocker: input.blocker ?? null };
+        await store.append('events', stampOwner(actor, { id: id(), type: 'job.updated', targetId: jobId, payload: update, createdAt: new Date().toISOString() }));
+        return json(res, 200, { ok: true, job: update });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/decisions') {
+        const events = await find(store, 'events');
+        const decisions = events.filter((e: any) => (e.type?.includes('decision') || e.type?.includes('approved') || e.type?.includes('qualif') || e.type?.includes('reject') || e.type?.includes('blocked')) && (!e.tenantId || e.tenantId === actor.tenantId));
+        return json(res, 200, decisions);
+      }
+      if (req.method === 'GET' && url.pathname === '/api/metrics') {
+        const metrics = await find(store, 'metrics');
+        return json(res, 200, visibleTo(actor, metrics));
+      }
+
       if (req.method === 'GET' && url.pathname === '/api/feedback') return json(res, 200, visibleTo(actor, await find(store, 'feedback')));
       if (req.method === 'GET' && url.pathname === '/api/audit-events') return json(res, 200, visibleTo(actor, await find(store, 'events')));
       if (req.method === 'GET' && url.pathname === '/api/readiness') {
@@ -556,6 +806,7 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
       return json(res, 404, { error: 'not_found' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'bad_request';
+      console.error(`[authority-server-error] ${req.method} ${req.url}:`, error);
       return json(res, errorStatus(message), { error: message });
     }
   });

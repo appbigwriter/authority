@@ -1,5 +1,3 @@
-/** Canonical local request/response contracts for S0-T02.
- * Runtime validation is intentionally dependency-free and fail-closed. */
 export type ContractErrorCode = 'CONTRACT_INVALID' | 'TENANT_REQUIRED' | 'ID_REQUIRED' | 'FIELD_REQUIRED';
 
 export class ContractError extends Error {
@@ -12,6 +10,11 @@ export class ContractError extends Error {
     this.field = field;
   }
 }
+
+export type UiViewState =
+  | 'loading' | 'empty' | 'success' | 'recoverable_error' | 'blocking_error'
+  | 'unauthorized' | 'forbidden' | 'insufficient_data' | 'awaiting_gate'
+  | 'awaiting_owner' | 'job_running' | 'last_readback' | 'next_action';
 
 export interface RequestContext { tenantId: string; ownerId: string; actorId: string; correlationId: string; }
 export interface ApiErrorResponse { error: string; detail?: string; field?: string; correlationId?: string; }
@@ -33,6 +36,39 @@ export interface PartnerRequest { id: string; name: string; program: string; sta
 export interface SourceRequest { id: string; partnerId: string; origin: string; contractVersion: string; scope: string; limits: string; status?: 'planned' | 'configured' | 'verified' | 'blocked' | 'disabled'; credentialRef?: string; limitation?: string; }
 export interface LlmRunRequest { model: string; promptVersion: string; schemaVersion: string; schema: { required?: string[] }; input: Record<string, unknown>; budgetCents: number; centsPerToken?: number; }
 export interface LlmRunResponse { id: string; tenantId: string; status: 'completed' | 'failed' | 'blocked'; model: string; promptVersion: string; schemaVersion: string; output?: Record<string, unknown>; usage?: { inputTokens: number; outputTokens: number; costCents: number; latencyMs: number }; errorCode?: string; }
+
+export interface LlmPromptVersionEnvelope {
+  provider: string;
+  model: string;
+  promptVersion: string;
+  promptHash?: string;
+  schemaVersion: string;
+  budgetCents: number;
+  costCents?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  latencyMs?: number;
+  limitations?: string[];
+}
+
+export interface SetupStateRequest {
+  organizationName: string;
+  editorialGoal: string;
+  partners: string[];
+  sources: string[];
+  llmLimitCents: number;
+  members: Array<{ email: string; role: string }>;
+  brandName: string;
+}
+
+export interface SetupStateResponse {
+  id: string;
+  tenantId: string;
+  status: 'setup_incomplete' | 'ready_for_research' | 'blocked';
+  checklist: Record<string, boolean>;
+  nextAction: string;
+  updatedAt: string;
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const requiredString = (value: Record<string, unknown>, field: string): string => {
