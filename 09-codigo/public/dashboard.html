@@ -66,6 +66,7 @@ async function compareSelectedSeeds(){syncComparisonSelection();if(!state.select
 async function developComparisonSelection(){syncComparisonSelection();if(!state.selectedSeedIds?.length)return;const r=await apiFetch('/api/seeds/select',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({seedIds:state.selectedSeedIds})});if(r.ok){await refresh();document.querySelector('[data-view="farmer"]').click()}else{const payload=await r.json().catch(()=>({}));alert(payload.detail||payload.error||`HTTP ${r.status}`)}}
 async function viewSeedPrompt(){const r=await apiFetch('/api/seeds/prompt');const payload=await r.json();$('#modalSeeds').classList.remove('hidden');$('#seedsList').innerHTML=`<h3>Prompt enviado ao LLM · ${esc(payload.model)}</h3><pre style="white-space:pre-wrap;max-height:60vh;overflow:auto">${esc(payload.prompt)}</pre>`}
 
+function render(){
 const view=document.querySelector('[data-view].active')?.dataset.view||'overview';
 const titles={
   overview:['Authority Engine','Descubra, desenvolva e opere ativos próprios de autoridade.'],
@@ -110,7 +111,7 @@ approvals:()=>tableView('Review Queue',state.approvals,['type','resource','statu
 metrics:()=>tableView('Metrics & Feedback',state.metrics,['name','value','source','period','limitation']),
 jobs:()=>`<div class="grid"><div class="section" data-testid="jobs-view"><h2>Jobs</h2>${tableView('',state.jobs,['type','resource','owner','status','progress','nextAction'])}</div><div class="section"><h2>Observabilidade</h2><div class="read-only-note">DEMO / FAKE: heartbeat e custos são locais; nenhum provider real foi chamado.</div>${jobRows(10)}</div></div>`,
 audit:()=>`<div class="section" data-testid="audit-view"><div class="top"><div><h2>Audit events</h2><span class="muted">Registro append-only; histórico não pode ser editado pela UI.</span></div><span class="fixture-badge">${state.mode==='fake'?'DEMO / FAKE':'LIVE READBACK'}</span></div><div class="read-only-note">Tenant ativo: ${esc(state.tenant_id||'fbr-agency')} · Owner de referência: Sergio · leitura somente.</div>${tableView('',state.events,['type','actor','tenant','resource','timestamp'])}</div>`,
-settings:()=>`<div class="section" data-testid="settings-view"><div class="top"><div><h2>Configurações e governança</h2><span class="muted">Contexto ativo, limites e adapters sem ativação automática.</span></div><span class="fixture-badge">DEMO / FAKE</span></div><div class="shell-error" data-testid="view-blocked"><strong>Integrações e publicação bloqueadas</strong><p class="muted">Sem credencial, contrato externo ou Gate humano. Esta tela não cria contas, não envia secrets e não publica.</p></div><div class="surface-grid"><article class="surface-card"><h3>Tenant e ownership</h3><p><strong>Tenant:</strong> ${esc(state.tenant_id||'fbr-agency')}</p><p><strong>Owner:</strong> Sergio</p><p><strong>Papel:</strong> ${esc(state.role||'operator · fixture')}</p><p><strong>Gate atual:</strong> G3 → G4 pendente</p></article><article class="surface-card"><h3>Provider / limites</h3><p><strong>Modo:</strong> DEMO / FAKE</p><p><strong>LLM:</strong> não configurado (fail-closed)</p><p><strong>Orçamento:</strong> 0 · sem spend</p><p><strong>Publicação:</strong> bloqueada por padrão</p></article><article class="surface-card"><h3>Parceiros e fontes</h3><p>${(state.sources||[]).map(s=>`${esc(s.name)} · ${esc(s.status)} · ${esc(s.mode)}`).join('<br>')||'Nenhuma fonte configurada'}</p><p class="muted">Adapters locais/manuals não são integrações reais.</p></article><article class="surface-card"><h3>Políticas</h3><div class="checklist"><div>✓ tenant/owner verificados antes de mutação</div><div>✓ aprovação humana obrigatória</div><div>✓ disclosure e fonte exigidos</div><div>✓ publicação sem bypass</div></div></article></div></div>`,
+settings:()=>settingsView(),
 about:()=>`
 <div class="about-hero">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -229,6 +230,154 @@ about:()=>`
 `
 };
 
+function settingsView(){
+  const prompts = state.prompts || [];
+  const activeKey = state.activePromptKey || (prompts[0]?.key || 'seeds_creator');
+  const activePrompt = prompts.find(p => p.key === activeKey) || prompts[0] || null;
+
+  return `<div class="section" data-testid="settings-view">
+    <div class="top">
+      <div>
+        <h2>Configurações &amp; Engenharia de Prompts</h2>
+        <span class="muted">Parametrização avançada de prompts, modelos LLM, governança e limites do sistema.</span>
+      </div>
+      <span class="fixture-badge">${state.mode==='fake'?'DEMO / FAKE':'LIVE READBACK'}</span>
+    </div>
+
+    <div class="section" style="background:var(--panel2);border:1px solid #334269;border-radius:12px;padding:20px;margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+        <div>
+          <h3 style="margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px">
+            <span>⚙️ Gerenciador de Prompts da Aplicação</span>
+            ${activePrompt ? `<span class="tag ${activePrompt.isDefault?'blue':'purple'}">v${activePrompt.version} · ${activePrompt.isDefault?'Oficial':'Customizado'}</span>` : ''}
+          </h3>
+          <p class="muted" style="margin:0;font-size:12px">Ajuste instruções de sistema, variáveis dinâmicas e parâmetros de inferência por módulo.</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:12px;color:var(--muted)">Prompt:
+            <select id="promptSelector" class="btn" style="margin-left:6px;min-width:240px;background:var(--bg);" onchange="selectPrompt(this.value)">
+              ${prompts.map(p => `<option value="${esc(p.key)}" ${p.key===activeKey?'selected':''}>${esc(p.title)} (${p.category})</option>`).join('')}
+            </select>
+          </label>
+          <button class="btn" type="button" onclick="loadPromptsList(true)">🔄 Recarregar</button>
+        </div>
+      </div>
+
+      ${activePrompt ? `
+      <div style="display:grid;grid-template-columns:1.4fr 0.8fr;gap:20px;">
+        <div class="stack">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text);">
+              Instrução &amp; Template de Prompt (${esc(activePrompt.key)})
+            </label>
+            <textarea id="promptTemplateEditor" style="width:100%;min-height:340px;background:#0b0d14;border:1px solid var(--line);border-radius:8px;padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.55;color:#e6edf3;resize:vertical;" placeholder="Insira as diretrizes do prompt...">${esc(activePrompt.promptTemplate)}</textarea>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:4px;">
+            <div style="font-size:11.5px;color:var(--muted);">
+              Última atualização: <strong>${esc(activePrompt.updatedAt.slice(0, 16).replace('T', ' '))}</strong> por <strong>${esc(activePrompt.updatedBy)}</strong>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button class="btn" type="button" onclick="resetActivePrompt('${esc(activePrompt.key)}')" ${activePrompt.isDefault?'disabled':''}>Restaurar Padrão Oficial</button>
+              <button class="btn primary" type="button" id="savePromptBtn" onclick="saveActivePrompt('${esc(activePrompt.key)}')">💾 Salvar Nova Versão</button>
+            </div>
+          </div>
+          <div id="promptSaveStatus" class="status"></div>
+        </div>
+
+        <div class="stack">
+          <div class="section" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px;">
+            <h4 style="margin:0 0 8px;font-size:13px;color:var(--text);">Parâmetros de Inferência</h4>
+            <div class="form">
+              <label>Modelo LLM:
+                <select id="promptModelInput">
+                  <option value="gpt-4o-mini" ${activePrompt.model==='gpt-4o-mini'?'selected':''}>gpt-4o-mini (Padrão rápido)</option>
+                  <option value="gpt-4o" ${activePrompt.model==='gpt-4o'?'selected':''}>gpt-4o (Alta capacidade)</option>
+                  <option value="claude-3-5-sonnet" ${activePrompt.model==='claude-3-5-sonnet'?'selected':''}>Claude 3.5 Sonnet</option>
+                  <option value="gemini-1.5-pro" ${activePrompt.model==='gemini-1.5-pro'?'selected':''}>Gemini 1.5 Pro</option>
+                  <option value="local-fake" ${activePrompt.model==='local-fake'?'selected':''}>Local Fake / Determinístico</option>
+                </select>
+              </label>
+
+              <label>Temperatura (${activePrompt.temperature}):
+                <div style="display:flex;align-items:center;gap:10px">
+                  <input type="range" id="promptTempSlider" min="0" max="1" step="0.05" value="${activePrompt.temperature}" oninput="$('#promptTempNum').textContent=this.value" style="flex:1">
+                  <span id="promptTempNum" style="font-weight:700;font-size:12px;width:30px">${activePrompt.temperature}</span>
+                </div>
+                <small class="muted" style="font-size:10.5px">0.0 = Analítico/Determinístico · 1.0 = Criativo/Diverso</small>
+              </label>
+
+              <label>Max Tokens:
+                <input type="number" id="promptMaxTokensInput" min="200" max="8000" step="100" value="${activePrompt.maxTokens}">
+              </label>
+            </div>
+          </div>
+
+          <div class="section" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px;">
+            <h4 style="margin:0 0 6px;font-size:13px;color:var(--text);">Variáveis Disponíveis</h4>
+            <p class="muted" style="margin:0 0 10px;font-size:11.5px">Clique na variável para inserir no cursor:</p>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              ${(activePrompt.availableVariables||[]).map(v => `
+                <button type="button" class="tag blue" style="cursor:pointer;border:1px solid #334269;padding:5px 8px;text-align:left;" title="${esc(v.description)} (ex: ${esc(v.example)})" onclick="insertVariableTag('{{${esc(v.name)}}}')">
+                  + {{${esc(v.name)}}}
+                </button>
+              `).join('') || '<span class="muted" style="font-size:11px">Nenhuma variável dinâmica definida.</span>'}
+            </div>
+            ${(activePrompt.availableVariables||[]).length ? `
+              <div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;font-size:11px;" class="muted">
+                ${activePrompt.availableVariables.map(v => `<div><strong>{{${esc(v.name)}}}:</strong> ${esc(v.description)}</div>`).join('')}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+      ` : `<div class="empty"><span class="loading"></span> Carregando prompts do sistema...</div>`}
+    </div>
+
+    <div class="shell-error" data-testid="view-blocked">
+      <strong>Integrações externas e publicação bloqueadas por padrão</strong>
+      <p class="muted">Sem credencial, contrato externo ou Gate humano. Esta tela não cria contas, não envia secrets e não publica.</p>
+    </div>
+
+    <div class="top" style="margin-top:20px">
+      <div>
+        <h3>Governança &amp; Contexto Operacional</h3>
+        <span class="muted">Controles de publicação e ownership de ativos.</span>
+      </div>
+    </div>
+    <div class="surface-grid">
+      <article class="surface-card">
+        <h3>Tenant e ownership</h3>
+        <p><strong>Tenant:</strong> ${esc(state.tenant_id||'fbr-agency')}</p>
+        <p><strong>Owner:</strong> Sergio</p>
+        <p><strong>Papel:</strong> ${esc(state.role||'operator · fixture')}</p>
+        <p><strong>Gate atual:</strong> G3 → G4 pendente</p>
+      </article>
+      <article class="surface-card">
+        <h3>Provider / limites</h3>
+        <p><strong>Modo:</strong> DEMO / FAKE</p>
+        <p><strong>LLM:</strong> Gateway fail-closed configurado</p>
+        <p><strong>Orçamento:</strong> 0 · sem spend não autorizado</p>
+        <p><strong>Publicação:</strong> bloqueada por padrão</p>
+      </article>
+      <article class="surface-card">
+        <h3>Parceiros e fontes</h3>
+        <p>${(state.sources||[]).map(s=>`${esc(s.name)} · ${esc(s.status)} · ${esc(s.mode)}`).join('<br>')||'Nenhuma fonte configurada'}</p>
+        <p class="muted">Adapters locais/manuais não são integrações reais.</p>
+      </article>
+      <article class="surface-card">
+        <h3>Políticas &amp; Inviolabilidade</h3>
+        <div class="checklist">
+          <div>✓ tenant/owner verificados antes de mutação</div>
+          <div>✓ aprovação humana obrigatória para personas</div>
+          <div>✓ disclosure e fonte exigidos em todo conteúdo</div>
+          <div>✓ publicação sem bypass</div>
+        </div>
+      </article>
+    </div>
+  </div>`;
+}
+
 function researchBriefView(){return `<div class="section" data-testid="research-briefs"><div class="top"><div><h2>Research Briefs</h2><span class="muted">Mercado, idioma, público, objetivo, fontes e limitações versionados.</span></div><button class="btn primary" data-testid="add-research-brief" onclick="openModal()">+ Adicionar Research Brief</button></div><div class="read-only-note">DEMO / FAKE: salvar e executar dependem de contrato/API; nenhum parceiro externo é chamado nesta fixture.</div><div class="surface-grid">${state.briefs.map(b=>`<article class="surface-card"><span class="surface-label">${esc(b.id)} · versão v1</span><h3>${esc(b.title)}</h3><p><strong>Mercado:</strong> ${esc(b.niche)} · <strong>Owner:</strong> ${esc(b.owner)}</p><p><strong>Status:</strong> <span class="tag blue">${esc(b.status)}</span> · próxima ação: ${esc(b.nextAction)}</p><p><strong>Limitação:</strong> fontes locais DEMO; sem integração LIVE.</p><div class="action-row"><button class="btn" onclick="document.querySelector('[data-view=\\"research\\"]').click()">Abrir Research Run</button><button class="btn" onclick="document.querySelector('[data-view=\\"evidence\\"]').click()">Ver evidências</button></div></article>`).join('')}</div></div>`}
 function researchRunView(){return `<div class="section" data-testid="research-run"><div class="top"><div><h2>Research Run / resultados brutos</h2><span class="muted">O dado bruto permanece separado da interpretação.</span></div><span class="fixture-badge">DEMO · NÃO LIVE</span></div><div class="cards"><div class="card"><div class="eyebrow">Status</div><div class="metric">${esc(state.researchRuns[0]?.progress||'0%')}</div><div class="muted">${esc(state.researchRuns[0]?.status||'queued')}</div></div><div class="card"><div class="eyebrow">Registros brutos</div><div class="metric">${esc(state.researchRuns[0]?.records||0)}</div><div class="muted">origem preservada</div></div><div class="card"><div class="eyebrow">Tendências</div><div class="metric">${esc(state.researchRuns[0]?.trends||0)}</div><div class="muted">para revisão</div></div><div class="card"><div class="eyebrow">Heartbeat</div><div class="muted">${esc(state.researchRuns[0]?.heartbeat||'—')}</div></div></div><div class="tab-strip"><button class="btn primary">Resumo</button><button class="btn">Registros brutos</button><button class="btn">Produtos</button><button class="btn">Tendências</button><button class="btn">Fontes</button><button class="btn">Erros</button><button class="btn">Limitações</button><button class="btn">Log do job</button></div><div class="surface-grid"><div class="surface-card"><h3>Sinais observados</h3><p>Legibilidade, contraste e decisão pré-evento aparecem como temas recorrentes no recorte manual.</p><span class="evidence-type">fato pendente de revisão</span></div><div class="surface-card"><h3>Limitações e modo</h3><p>${esc(state.researchRuns[0]?.limitations)}</p><span class="tag amber">DEMO / FAKE</span></div></div><div class="action-row"><button class="btn">Marcar insuficiente</button><button class="btn">Adicionar observação</button><button class="btn">Reprocessar</button><button class="btn primary" onclick="document.querySelector('[data-view=\\"dossier\\"]').click()">Gerar/abrir dossier</button></div></div>`}
 function evidenceLedgerView(){return `<div class="section" data-testid="evidence-ledger"><div class="top"><div><h2>Evidence Ledger</h2><span class="muted">Fonte, origem, data, período, tipo, confiança e limitações.</span></div><div class="action-row"><button class="btn">Filtrar tipo</button><button class="btn">Filtrar período</button></div></div><div class="read-only-note">Evidência DEMO / FAKE: não é validação de mercado nem fonte LIVE.</div><div class="table-wrap"><table class="data-table"><thead><tr><th>Fonte / origem</th><th>Data / período</th><th>Observação</th><th>Tipo</th><th>Confiança</th><th>Limitação</th><th>Relacionado</th></tr></thead><tbody>${state.evidence.map(e=>`<tr><td><strong>${esc(e.source)}</strong><span class="muted">${esc(e.origin)}</span></td><td>${esc(e.date)}<br><span class="muted">${esc(e.period)}</span></td><td>${esc(e.observation)}</td><td><span class="evidence-type">${esc(e.type)}</span></td><td>${esc(e.confidence)}</td><td>${esc(e.limitation)}</td><td>${esc(e.related)}</td></tr>`).join('')}</tbody></table></div><div class="action-row"><button class="btn">Solicitar revisão</button><button class="btn">Marcar desatualizada</button><button class="btn">Abrir fonte original</button></div></div>`}
@@ -237,6 +386,7 @@ function farmerWorkspaceView(){const p=state.farmer_workspace;return `<div class
 function postMachineWorkspaceView(){const rows=state.editorial_calendar||[];return `<div class="section" data-testid="post-machine-workspace"><div class="top"><div><h2>Post Machine · calendário e drafts</h2><span class="muted">Pautas e drafts permanecem sem publicação automática.</span></div><button class="btn primary" onclick="openPMModal()">+ Adicionar pauta</button></div><div class="read-only-note">DEMO / FAKE: conteúdo local em <strong>draft</strong>; publicação pública está bloqueada por padrão.</div><div class="surface-grid">${rows.map(r=>`<article class="surface-card"><span class="surface-label">${esc(r.id)} · ${esc(r.format)}</span><h3>${esc(r.title)}</h3><p><strong>Pilar:</strong> ${esc(r.pillar)} · <strong>Owner:</strong> ${esc(r.owner)}</p><p><strong>Fonte:</strong> ${esc(r.source)} · <strong>Próximo Gate:</strong> ${esc(r.nextGate)}</p><p><strong>Disclosure:</strong> ${esc(r.disclosure)}</p><span class="tag blue">${esc(r.status)}</span><div class="action-row"><button class="btn">Validar briefing</button><button class="btn">Gerar draft (local)</button><button class="btn" disabled>Publicar</button></div></article>`).join('')}</div><div class="section"><h3>Checklist antes de gerar</h3><div class="checklist"><div>✓ Persona/Marca e versão vinculadas</div><div>✓ Character Kit e guardrails disponíveis</div><div>✓ Fonte e disclosure presentes</div><div>⚠ Aprovação humana ainda pendente</div></div></div></div>`}
 function tableView(title,rows,columns){const body=rows?.length?`<div class="table-wrap"><table class="data-table"><thead><tr>${columns.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${columns.map(c=>`<td>${c==='status'?`<span class="tag ${String(row[c]).includes('blocked')?'red':'blue'}">${esc(row[c])}</span>`:`${row[c]===undefined||row[c]===''?'<span class="muted">—</span>':esc(row[c])}`}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'<div class="empty" data-testid="view-empty">Nenhum registro disponível. Próxima ação: criar ou carregar dados autorizados.</div>';return `<div class="section">${title?`<h2>${esc(title)}</h2>`:''}<div class="control-banner"><div><strong>Estado de dados: ${state.mode==='fake'?'DEMO / FAKE':'LIVE'}</strong><p>Último readback local; limitações permanecem visíveis.</p></div><span class="fixture-badge">${state.mode==='fake'?'DETERMINÍSTICO':'API'}</span></div>${body}</div>`}
 function pipelineBoardView(){const stages=[['research','Research',state.briefs],['opportunities','Opportunities',state.opportunities],['seeds','Seeds',state.seeds],['farmer','Farmer',state.farmer_profiles],['review','Review',[...state.approvals,...state.post_machine]]];return `<div class="control-banner"><div><strong>Pipeline por estágio</strong><p>Cards são somente leitura neste fixture; transições exigem API e Gate.</p></div><span class="fixture-badge">${state.mode==='fake'?'FAKE FIXTURE':'LIVE READBACK'}</span></div><div class="section" data-testid="pipeline-board"><div class="pipeline-board">${stages.map(([key,label,items])=>`<section class="pipeline-column" data-stage="${key}"><h3>${label} <span class="muted">${items?.length||0}</span></h3>${(items||[]).slice(0,5).map(item=>`<article class="pipeline-card"><strong>${esc(item.title||item.name||item.resource||item.id)}</strong><p>Owner: ${esc(item.owner||'Sergio')} · Status: ${esc(item.status||'—')}</p><p>Gate: ${esc(item.nextGate||'G3')} · Próxima ação: ${esc(item.nextAction||item.question||'Revisar')}</p></article>`).join('')||'<div class="empty">Nenhum item neste estágio.</div>'}</section>`).join('')}</div></div><div class="grid"><div class="section" data-testid="blocker-panel"><h2>Blockers</h2>${blockerRows(5)}</div><div class="section" data-testid="resource-history"><h2>Histórico por recurso</h2>${activityRows(5)}</div></div><div class="section" data-testid="active-jobs"><h2>Jobs / heartbeat</h2>${jobRows(10)}</div>`}
+
 views.comparisons=()=>comparisonPackView();
 function approvalRows(n){const rows=state.approvals?.slice(0,n)||[];return rows.length?`<div class="list">${rows.map(a=>`<div class="row"><span><strong>${esc(a.type||'Gate')}</strong><small class="muted">${esc(a.resource)}</small></span><span class="tag amber">${esc(a.status)}</span></div>`).join('')}</div>`:'<div class="empty" data-testid="view-empty">Nenhuma aprovação pendente.</div>'}
 function jobRows(n){const rows=state.jobs?.slice(0,n)||[];return rows.length?`<div class="list">${rows.map(j=>`<div class="row"><span><strong>${esc(j.type)}</strong><small class="muted">${esc(j.resource)} · ${esc(j.owner||'—')}</small></span><span class="tag blue">${esc(j.status)} · heartbeat ${esc(j.heartbeat||'—')}</span></div>`).join('')}</div>`:'<div class="empty" data-testid="view-empty">Nenhum job ativo.</div>'}
@@ -298,5 +448,107 @@ $('#nav').onkeydown=e=>{const toggle=e.target.closest('[data-nav-toggle]');if(to
   }
 })();
 
-refresh();
+async function loadPromptsList(forceRender = false){
+  try {
+    const r = await apiFetch('/api/settings/prompts');
+    if(r.ok){
+      state.prompts = await r.json();
+      if(!state.activePromptKey && state.prompts.length){
+        state.activePromptKey = state.prompts[0].key;
+      }
+      if(forceRender) render();
+    }
+  } catch(err) {
+    console.error('Erro ao carregar prompts:', err);
+  }
+}
+
+function selectPrompt(key){
+  state.activePromptKey = key;
+  render();
+}
+
+function insertVariableTag(tag){
+  const editor = document.getElementById('promptTemplateEditor');
+  if(!editor) return;
+  const start = editor.selectionStart || 0;
+  const end = editor.selectionEnd || 0;
+  const val = editor.value;
+  editor.value = val.substring(0, start) + tag + val.substring(end);
+  editor.focus();
+  editor.selectionStart = editor.selectionEnd = start + tag.length;
+}
+
+async function saveActivePrompt(key){
+  const editor = document.getElementById('promptTemplateEditor');
+  const modelSelect = document.getElementById('promptModelInput');
+  const tempSlider = document.getElementById('promptTempSlider');
+  const maxTokensInput = document.getElementById('promptMaxTokensInput');
+  const statusEl = document.getElementById('promptSaveStatus');
+  const saveBtn = document.getElementById('savePromptBtn');
+
+  if(!editor || !key) return;
+
+  const promptTemplate = editor.value;
+  const model = modelSelect?.value || 'gpt-4o-mini';
+  const temperature = parseFloat(tempSlider?.value ?? '0.7');
+  const maxTokens = parseInt(maxTokensInput?.value ?? '2500', 10);
+
+  if(saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Salvando...'; }
+  if(statusEl) statusEl.textContent = 'Gravando nova versão...';
+
+  try {
+    const r = await apiFetch(`/api/settings/prompts/${key}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ promptTemplate, model, temperature, maxTokens })
+    });
+    if(r.ok){
+      const updated = await r.json();
+      if(statusEl) {
+        statusEl.style.color = 'var(--green)';
+        statusEl.textContent = `Salvo com sucesso! Versão incrementada para v${updated.version}.`;
+      }
+      await loadPromptsList(false);
+      setTimeout(() => { render(); }, 800);
+    } else {
+      const err = await r.json().catch(() => ({}));
+      if(statusEl) {
+        statusEl.style.color = 'var(--red)';
+        statusEl.textContent = `Erro ao salvar: ${err.error || r.statusText}`;
+      }
+    }
+  } catch(err) {
+    if(statusEl) {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = `Falha na requisição: ${err.message}`;
+    }
+  } finally {
+    if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Salvar Nova Versão'; }
+  }
+}
+
+async function resetActivePrompt(key){
+  if(!confirm(`Deseja restaurar o prompt ${key} para a versão oficial padrão do sistema?`)) return;
+  const statusEl = document.getElementById('promptSaveStatus');
+  if(statusEl) statusEl.textContent = 'Restaurando padrão...';
+  try {
+    const r = await apiFetch(`/api/settings/prompts/${key}/reset`, {
+      method: 'POST'
+    });
+    if(r.ok){
+      await loadPromptsList(false);
+      render();
+    } else {
+      alert('Erro ao resetar prompt.');
+    }
+  } catch(err) {
+    alert('Erro de conexão ao resetar prompt: ' + err.message);
+  }
+}
+
+(async function initApp(){
+  await refresh();
+  await loadPromptsList(false);
+})();
 </script></body></html>

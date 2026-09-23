@@ -13,6 +13,7 @@ import { createApprovedPersonaReadModel, createPersonaApprovedEvent } from './pe
 import { PartnerRegistry, SourceRegistry, OpenAIGateway, isRegistryStatus } from './registries.js';
 import { createLocalBrief, runLocalResearch, type LocalResearchBrief, type LocalResearchRun } from './local-research.js';
 import { validateMetricInput } from './audit.js';
+import { PromptRegistry, type PromptConfig } from './prompt-registry.js';
 
 interface FarmerProfile { id: string; profileId?: string; seedId: string; name: string; brand: string; bio: string; disclosure: string; thesis: string; promise: string; mentorRole: 'mentor'; archetype: string; traits: string[]; decisionCompass: string; not: string[]; backstory: string; authorityMethod: string; voice: { tone: string; vocabulary: string[]; prohibited: string[] }; visual: { style: string; palette: string; continuity: string; anchorFace: string; signatureTrait: string; prompts: string[]; credibilitySettings: string[]; credibilityLocations: string[] }; pillars: string[]; formats: string[]; guardrails: string[]; claims: { allowed: string[]; soften: string[]; prohibited: string[] }; aboutPage: string; footerDisclaimer: string; monetizationModel: string[]; crossCuttingThemes: string[]; socialContentIdeas: { blog: string[]; video: string[]; shorts: string[]; stories: string[]; }; weeklyContentPlan: any[]; status: 'development' | 'review' | 'approved'; createdAt: string; ownerId?: string; createdBy?: string; }
 
@@ -110,6 +111,7 @@ function persistenceErrorResponse(res: ServerResponse, error: unknown) {
 export function createAuthorityServer(store: PersistenceStore, options: AuthorityServerOptions = {}) {
   const authConfig = options.auth ?? authConfigFromEnv();
   const publishingAdapter = options.publishingAdapter ?? new UnconfiguredPublishingAdapter();
+  const promptRegistry = new PromptRegistry();
   return createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', 'http://localhost');
@@ -597,6 +599,56 @@ export function createAuthorityServer(store: PersistenceStore, options: Authorit
         const setupPayload = { id: `setup_${Date.now()}`, tenantId: actor.tenantId, status, checklist, nextAction, config: input, updatedAt: new Date().toISOString() };
         await store.append('events', stampOwner(actor, { id: id(), type: 'setup.updated', targetId: setupPayload.id, payload: setupPayload, createdAt: new Date().toISOString() }));
         return json(res, 200, setupPayload);
+      }
+
+      // Settings: Gerenciador de Prompts do Sistema
+      if (req.method === 'GET' && url.pathname === '/api/settings/prompts') {
+        const events = await find(store, 'events');
+        const customPromptEvents = events
+          .filter((e: any) => e.type === 'settings.prompt_updated' && (!e.tenantId || e.tenantId === actor.tenantId))
+          .map((e: any) => e.payload as PromptConfig);
+        const registry = new PromptRegistry(customPromptEvents);
+        return json(res, 200, registry.list());
+      }
+      if (req.method === 'GET' && /^\/api\/settings\/prompts\/[^/]+$/.test(url.pathname)) {
+        const key = url.pathname.split('/')[4]!;
+        const events = await find(store, 'events');
+        const customPromptEvents = events
+          .filter((e: any) => e.type === 'settings.prompt_updated' && (!e.tenantId || e.tenantId === actor.tenantId))
+          .map((e: any) => e.payload as PromptConfig);
+        const registry = new PromptRegistry(customPromptEvents);
+        try {
+          return json(res, 200, registry.get(key));
+        } catch {
+          return json(res, 404, { error: 'prompt_not_found' });
+        }
+      }
+      if ((req.method === 'PUT' || req.method === 'POST') && /^\/api\/settings\/prompts\/[^/]+$/.test(url.pathname)) {
+        const key = url.pathname.split('/')[4]!;
+        const input = await body(req);
+        const events = await find(store, 'events');
+        const customPromptEvents = events
+          .filter((e: any) => e.type === 'settings.prompt_updated' && (!e.tenantId || e.tenantId === actor.tenantId))
+          .map((e: any) => e.payload as PromptConfig);
+        const registry = new PromptRegistry(customPromptEvents);
+        try {
+          const updated = registry.update(key, input, actor.id || actor.ownerId);
+          await store.append('events', stampOwner(actor, { id: id(), type: 'settings.prompt_updated', targetId: key, payload: updated as unknown as Record<string, unknown>, createdAt: new Date().toISOString() }));
+          return json(res, 200, updated);
+        } catch (error: unknown) {
+          return json(res, 404, { error: error instanceof Error ? error.message : 'prompt_update_failed' });
+        }
+      }
+      if (req.method === 'POST' && /^\/api\/settings\/prompts\/[^/]+\/reset$/.test(url.pathname)) {
+        const key = url.pathname.split('/')[4]!;
+        const registry = new PromptRegistry();
+        try {
+          const resetPrompt = registry.reset(key);
+          await store.append('events', stampOwner(actor, { id: id(), type: 'settings.prompt_reset', targetId: key, payload: resetPrompt as unknown as Record<string, unknown>, createdAt: new Date().toISOString() }));
+          return json(res, 200, resetPrompt);
+        } catch {
+          return json(res, 404, { error: 'prompt_not_found' });
+        }
       }
 
       // S3 & S4: Research Briefs list, Evidence Ledger, Opportunities list & details
