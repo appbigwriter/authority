@@ -1,6 +1,18 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Pool } from 'pg';
 import { RelationalAuthorityStore } from './repository.js';
 import { createAuthorityServer } from './server.js';
+
+for (const envFile of ['.env.local', '.env']) {
+  const fullPath = resolve(process.cwd(), envFile);
+  if (existsSync(fullPath)) {
+    try {
+      process.loadEnvFile?.(fullPath);
+      break;
+    } catch {}
+  }
+}
 
 const required = (name: string): string => {
   const value = process.env[name]?.trim();
